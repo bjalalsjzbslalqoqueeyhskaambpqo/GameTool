@@ -12,34 +12,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Unity
-        uses: buildalon/setup-unity@v1
+      - name: Cache Unity Library
+        uses: actions/cache@v4
         with:
-          unity-version: 2022.3.20f1
-          install-path: /mnt
-          modules: android
+          path: Library
+          key: Library-Android
+          restore-keys: Library-
 
-      - name: Activate License
-        uses: buildalon/activate-unity-license@v2
+      - name: Build Android
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          license: Personal
-          username: ${{ secrets.UNITY_EMAIL }}
-          password: ${{ secrets.UNITY_PASSWORD }}
-
-      - name: Build Android APK
-        uses: buildalon/unity-action@v1
-        with:
-          log-name: build-android
-          args: >
-            -quit
-            -batchmode
-            -nographics
-            -projectPath .
-            -buildTarget Android
-            -executeMethod BuildScript.BuildAndroid
+          targetPlatform: Android
+          unityVersion: 2022.3.20f1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: GameTool-android
-          path: build/**/*.apk
+          path: build/Android
