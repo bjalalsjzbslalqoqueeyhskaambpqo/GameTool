@@ -26,6 +26,13 @@ jobs:
           mkdir -v -p ~/.local/share/godot/export_templates
           mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable \
              ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          
+          mkdir -p ~/.config/godot
+          mv /root/.config/godot/editor_settings-4.tres \
+             ~/.config/godot/editor_settings-4.tres
+          
+          echo 'export/android/java_sdk_path = "/usr/lib/jvm/java-17-openjdk-amd64"' \
+            >> ~/.config/godot/editor_settings-4.tres
 
       - name: Create export dirs
         run: mkdir -v -p proyecto/build/android
