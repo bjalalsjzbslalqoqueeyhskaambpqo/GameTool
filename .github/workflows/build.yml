@@ -3,126 +3,44 @@ name: Build Android APK (Debug)
 on:
   push:
     branches: ["**"]
-  pull_request:
 
 jobs:
   export-android-debug:
+    name: Android Debug Export
     runs-on: ubuntu-latest
-
-    env:
-      GODOT_VERSION: 4.3-stable
-      GODOT_ZIP: Godot_v4.3-stable_linux.x86_64.zip
-      GODOT_BIN: Godot_v4.3-stable_linux.x86_64
-      GODOT_HEADLESS_ZIP: Godot_v4.3-stable_linux.x86_64_headless.zip
-      GODOT_HEADLESS_BIN: Godot_v4.3-stable_linux.x86_64_headless
-      EXPORT_TEMPLATES_TPZ: Godot_v4.3-stable_export_templates.tpz
-      PROJECT_DIR: proyecto
-      ANDROID_BUILD_TOOLS: "33.0.2"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
-      - name: Set up Java 17 (Temurin)
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: 17
 
-      - name: Set up Android SDK (API 33)
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android packages
+      - name: Generate debug keystore
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;${ANDROID_BUILD_TOOLS}"
-
-      - name: Download Godot 4.3 headless and export templates
-        run: |
-          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
-          unzip -q Godot_v4.3-stable_linux.x86_64.zip
-          mv Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot
-          chmod +x /usr/local/bin/godot
-          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
-          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
-          unzip -q Godot_v4.3-stable_export_templates.tpz
-          mv templates/* ~/.local/share/godot/export_templates/4.3.stable/
-
-      - name: Configure and Export APK
-        run: |
-          # Generate debug keystore
           keytool -genkey -v \
-            -keystore $HOME/debug.keystore \
+            -keystore $GITHUB_WORKSPACE/debug.keystore \
             -alias androiddebugkey \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android -keypass android \
             -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null
 
-          # Write editor settings
-          mkdir -p $HOME/.config/godot
-          cat > $HOME/.config/godot/editor_settings-4.tres << EOF
-          [gd_resource type="EditorSettings" format=3]
+      - name: Godot Android Export
+        uses: dulvui/godot-android-export@v3.0.0
+        with:
+          working-directory: proyecto
+          godot-version: 4.3
+          keystore-release-path: ${{ github.workspace }}/debug.keystore
+          keystore-release-user: androiddebugkey
+          keystore-release-password: android
 
-          [resource]
-          export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
-          export/android/debug_keystore = "$HOME/debug.keystore"
-          export/android/debug_keystore_user = "androiddebugkey"
-          export/android/debug_keystore_pass = "android"
-          EOF
-
-          # Overwrite export_presets.cfg with correct paths
-          cat > proyecto/export_presets.cfg << EOF
-          [preset.0]
-
-          name="Android"
-          platform="Android"
-          runnable=true
-          dedicated_server=false
-          custom_features=""
-          export_filter="all_resources"
-          include_filter=""
-          exclude_filter=""
-          export_path="build/android/app-debug.apk"
-          encryption_include_filters=""
-          encryption_exclude_filters=""
-          encrypt_pck=false
-          encrypt_directory=false
-          script_export_mode=1
-
-          [preset.0.options]
-
-          custom_template/debug=""
-          custom_template/release=""
-          gradle_build/use_gradle_build=false
-          architectures/armeabi-v7a=true
-          architectures/arm64-v8a=true
-          architectures/x86=false
-          architectures/x86_64=false
-          keystore/debug="$HOME/debug.keystore"
-          keystore/debug_user="androiddebugkey"
-          keystore/debug_password="android"
-          keystore/release=""
-          keystore/release_user=""
-          keystore/release_password=""
-          package/unique_name="com.gametool.disaster"
-          package/name="GameTool"
-          package/signed=true
-          package/min_sdk=21
-          package/target_sdk=33
-          EOF
-
-          # Export
-          mkdir -p proyecto/build/android
-          godot --headless --path proyecto \
-            --export-debug "Android" \
-            build/android/app-debug.apk
-
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-debug-apk
-          path: proyecto/build/android/app-debug.apk
-          if-no-files-found: error
+          name: game-apk
+          path: proyecto/**/*.apk
