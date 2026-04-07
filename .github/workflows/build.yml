@@ -53,18 +53,16 @@ jobs:
 
       - name: Configure Godot Android SDK paths
         run: |
-          set -eux
-          mkdir -p "$HOME/.config/godot"
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<SETTINGS
+          mkdir -p /home/runner/.config/godot
+          cat > /home/runner/.config/godot/editor_settings-4.tres << 'EOF'
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
-          export/android/android_sdk_path = "${ANDROID_SDK_ROOT}"
+          export/android/android_sdk_path = "/usr/local/lib/android/sdk"
           export/android/debug_keystore = ""
-          export/android/debug_keystore_pass = ""
-          export/android/debug_keystore_user = ""
-          export/android/java_sdk_path = "${JAVA_HOME}"
-          SETTINGS
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
 
       - name: Export APK (debug)
         run: |
