@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 24
+  productGUID: 4a9a4b2a2b2a4b2a2b2a4b2a2b2a4b2a
+  AndroidProfiler: 0
+  AndroidFilterTouchesWhenObscured: 0
+  AndroidEnableSustainedPerformanceMode: 0
+  defaultScreenOrientation: 1
+  targetDevice: 2
+  useOnDemandResources: 0
+  applicationIdentifier:
+    Android: com.gametool.disaster
+  buildNumber: {}
+  AndroidBundleVersionCode: 1
+  AndroidMinSdkVersion: 21
+  AndroidTargetSdkVersion: 33
+  bundleVersion: 1.0
+  productName: GameTool
+  companyName: GameTool

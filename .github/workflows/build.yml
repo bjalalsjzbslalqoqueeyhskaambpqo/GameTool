@@ -1,0 +1,45 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  build:
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Unity
+        uses: buildalon/setup-unity@v1
+        with:
+          unity-version: 2022.3.20f1
+          install-path: /mnt
+          modules: android
+
+      - name: Activate License
+        uses: buildalon/activate-unity-license@v2
+        with:
+          license: Personal
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Build Android APK
+        uses: buildalon/unity-action@v1
+        with:
+          log-name: build-android
+          args: >
+            -quit
+            -batchmode
+            -nographics
+            -projectPath .
+            -buildTarget Android
+            -executeMethod BuildScript.BuildAndroid
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameTool-android
+          path: build/**/*.apk
