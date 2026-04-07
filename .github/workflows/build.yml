@@ -86,11 +86,16 @@ jobs:
           include_filter=""
           exclude_filter=""
           export_path="build/android/app-debug.apk"
+          encryption_include_filters=""
+          encryption_exclude_filters=""
           encrypt_pck=false
           encrypt_directory=false
+          script_export_mode=1
 
           [preset.0.options]
 
+          custom_template/debug=""
+          custom_template/release=""
           gradle_build/use_gradle_build=false
           architectures/armeabi-v7a=true
           architectures/arm64-v8a=true
@@ -104,7 +109,7 @@ jobs:
           keystore/release_password=""
           package/unique_name="com.gametool.disaster"
           package/name="GameTool"
-          package/signed=false
+          package/signed=true
           package/min_sdk=21
           package/target_sdk=33
           EOF
