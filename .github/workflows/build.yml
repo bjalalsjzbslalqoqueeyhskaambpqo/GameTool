@@ -42,13 +42,17 @@ jobs:
 
       - name: Download Godot 4.3 headless and export templates
         run: |
-          set -eux
-          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
-          wget -q "https://downloads.tuxfamily.org/godotengine/4.3/${GODOT_HEADLESS_ZIP}"
-          wget -q "https://downloads.tuxfamily.org/godotengine/4.3/${EXPORT_TEMPLATES_TPZ}"
-          unzip -q "${GODOT_HEADLESS_ZIP}"
-          chmod +x "${GODOT_HEADLESS_BIN}"
-          unzip -q "${EXPORT_TEMPLATES_TPZ}" -d "$HOME/.local/share/godot/export_templates/4.3.stable"
+          # Download Godot headless
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          unzip -q Godot_v4.3-stable_linux.x86_64.zip
+          mv Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot
+          chmod +x /usr/local/bin/godot
+
+          # Download export templates
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+          unzip -q Godot_v4.3-stable_export_templates.tpz
+          mv templates/* ~/.local/share/godot/export_templates/4.3.stable/
 
       - name: Configure Godot Android SDK paths
         run: |
