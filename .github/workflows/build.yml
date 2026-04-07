@@ -13,11 +13,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
       - name: Godot Android Export
         uses: dulvui/godot-android-export@v4
         with:
           working-directory: proyecto
           godot-version: 4.3
+          godot-channel: stable
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
