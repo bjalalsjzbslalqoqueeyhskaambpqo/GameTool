@@ -42,13 +42,10 @@ jobs:
 
       - name: Download Godot 4.3 headless and export templates
         run: |
-          # Download Godot headless
           wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
           unzip -q Godot_v4.3-stable_linux.x86_64.zip
           mv Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot
           chmod +x /usr/local/bin/godot
-
-          # Download export templates
           mkdir -p ~/.local/share/godot/export_templates/4.3.stable
           wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
           unzip -q Godot_v4.3-stable_export_templates.tpz
@@ -71,12 +68,8 @@ jobs:
 
       - name: Export APK (debug)
         run: |
-          set -eux
-          mkdir -p "${PROJECT_DIR}/build/android"
-          ./"${GODOT_HEADLESS_BIN}" \
-            --headless \
-            --path "${PROJECT_DIR}" \
-            --export-debug "Android" "build/android/app-debug.apk"
+          mkdir -p proyecto/build/android
+          godot --headless --path proyecto --export-debug Android build/android/app-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
