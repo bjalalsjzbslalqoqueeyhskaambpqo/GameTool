@@ -53,13 +53,24 @@ jobs:
 
       - name: Configure Godot Android SDK paths
         run: |
+          # Generate debug keystore
+          keytool -genkey -v \
+            -keystore /home/runner/debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          # Write editor settings
           mkdir -p /home/runner/.config/godot
           cat > /home/runner/.config/godot/editor_settings-4.tres << 'EOF'
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
           export/android/android_sdk_path = "/usr/local/lib/android/sdk"
-          export/android/debug_keystore = ""
+          export/android/debug_keystore = "/home/runner/debug.keystore"
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           EOF
