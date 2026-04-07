@@ -1,0 +1,10 @@
+[gd_version 4]
+config_version=5
+
+[application]
+config/name="GameTool"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.3", "Mobile")
+
+[rendering]
+renderer/rendering_method="mobile"
