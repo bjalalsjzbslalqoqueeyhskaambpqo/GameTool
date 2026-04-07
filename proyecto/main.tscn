@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3 uid="uid://bq8v2cs4pyr7h"]
+
+[ext_resource type="Script" path="res://main.gd" id="1_0d1vf"]
+
+[sub_resource type="Environment" id="Environment_f27h8"]
+background_mode = 1
+background_color = Color(0.05, 0.08, 0.2, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2xwoc"]
+albedo_color = Color(0.65, 0.65, 0.65, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_6kp8q"]
+
+[node name="Main" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_f27h8")
+
+[node name="Cube" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_6kp8q")
+material_override = SubResource("StandardMaterial3D_2xwoc")
+script = ExtResource("1_0d1vf")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 4)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.939693, -0.336824, -0.0593912, 0, 0.173648, -0.984808, 0.34202, 0.925417, 0.163176, 0, 3, 0)
+light_energy = 2.0

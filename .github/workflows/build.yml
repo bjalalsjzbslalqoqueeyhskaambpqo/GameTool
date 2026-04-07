@@ -1,0 +1,82 @@
+name: Build Android APK (Debug)
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  export-android-debug:
+    runs-on: ubuntu-latest
+
+    env:
+      GODOT_VERSION: 4.3-stable
+      GODOT_ZIP: Godot_v4.3-stable_linux.x86_64.zip
+      GODOT_BIN: Godot_v4.3-stable_linux.x86_64
+      GODOT_HEADLESS_ZIP: Godot_v4.3-stable_linux.x86_64_headless.zip
+      GODOT_HEADLESS_BIN: Godot_v4.3-stable_linux.x86_64_headless
+      EXPORT_TEMPLATES_TPZ: Godot_v4.3-stable_export_templates.tpz
+      PROJECT_DIR: proyecto
+      ANDROID_BUILD_TOOLS: "33.0.2"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK (API 33)
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;${ANDROID_BUILD_TOOLS}"
+
+      - name: Download Godot 4.3 headless and export templates
+        run: |
+          set -eux
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
+          wget -q "https://downloads.tuxfamily.org/godotengine/4.3/${GODOT_HEADLESS_ZIP}"
+          wget -q "https://downloads.tuxfamily.org/godotengine/4.3/${EXPORT_TEMPLATES_TPZ}"
+          unzip -q "${GODOT_HEADLESS_ZIP}"
+          chmod +x "${GODOT_HEADLESS_BIN}"
+          unzip -q "${EXPORT_TEMPLATES_TPZ}" -d "$HOME/.local/share/godot/export_templates/4.3.stable"
+
+      - name: Configure Godot Android SDK paths
+        run: |
+          set -eux
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<SETTINGS
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_SDK_ROOT}"
+          export/android/debug_keystore = ""
+          export/android/debug_keystore_pass = ""
+          export/android/debug_keystore_user = ""
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          SETTINGS
+
+      - name: Export APK (debug)
+        run: |
+          set -eux
+          mkdir -p "${PROJECT_DIR}/build/android"
+          ./"${GODOT_HEADLESS_BIN}" \
+            --headless \
+            --path "${PROJECT_DIR}" \
+            --export-debug "Android" "build/android/app-debug.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: proyecto/build/android/app-debug.apk
+          if-no-files-found: error
