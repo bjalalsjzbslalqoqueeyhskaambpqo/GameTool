@@ -10,8 +10,8 @@ public class Raycaster {
     private static final float FOV      = (float)(Math.PI / 3);
     private static final float HALF_FOV = FOV / 2f;
     private static final int   NUM_RAYS = 240;
-    private static final float MAX_DIST = 600f;
-    private static final float FOG_START = 100f;
+    private static final float MAX_DIST = 420f;
+    private static final float FOG_START = 40f;
 
     private Paint paint   = new Paint();
     private Paint fogPaint = new Paint();
@@ -81,7 +81,7 @@ public class Raycaster {
             screenW/2f, screenH/2f,
             Math.max(screenW, screenH) * 0.7f,
             Color.TRANSPARENT,
-            Color.argb(180, 0, 0, 0),
+            Color.argb(220, 0, 0, 0),
             Shader.TileMode.CLAMP);
         p.setShader(gradient);
         canvas.drawRect(0, 0, screenW, screenH, p);
