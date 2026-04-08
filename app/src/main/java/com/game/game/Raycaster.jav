@@ -10,7 +10,7 @@ import android.graphics.Shader;
 public class Raycaster {
     private static final float FOV      = (float)(Math.PI / 3);
     private static final float HALF_FOV = FOV / 2f;
-    private static final int   NUM_RAYS = 120;
+    private static final int   NUM_RAYS = 180;
     private static final float MAX_DIST = 220f;
     private static final float FOG_START = 8f;
 
@@ -80,24 +80,30 @@ public class Raycaster {
 
         float angleStep = FOV / NUM_RAYS;
         float sliceW    = (float)screenW / NUM_RAYS;
+        float[] heights = new float[NUM_RAYS];
+        float[] fogs = new float[NUM_RAYS];
 
         for (int i = 0; i < NUM_RAYS; i++) {
             float rayAngle = player.angle - HALF_FOV + i * angleStep;
             float dist = castRay(player.x, player.y, rayAngle);
-            float corrected = dist *
-                (float)Math.cos(rayAngle - player.angle);
+            float corrected = dist * (float)Math.cos(rayAngle - player.angle);
 
-            float wallH = Math.min(
-                (Map.TILE * screenH) / (corrected + 0.001f),
-                screenH);
+            heights[i] = Math.min((Map.TILE * screenH) / (corrected + 0.001f), screenH);
+
+            float fog = 1f - Math.min(1f,
+                Math.max(0f, (corrected - FOG_START) / (MAX_DIST - FOG_START)));
+            fogs[i] = fog * fog;
+        }
+
+        for (int i = 0; i < NUM_RAYS; i++) {
+            float fog = fogs[i];
+            if (i > 0 && i < NUM_RAYS - 1) {
+                fog = (fogs[i - 1] + fogs[i] + fogs[i + 1]) / 3f;
+            }
+
+            float wallH = heights[i];
             float top  = (screenH - wallH) / 2f;
             float left = i * sliceW;
-
-            // Niebla — más lejos más oscuro
-            float fog = 1f - Math.min(1f,
-                Math.max(0f, (corrected - FOG_START) /
-                (MAX_DIST - FOG_START)));
-            fog = fog * fog;
 
             int r = (int)(120 * fog);
             int g = (int)(40  * fog);
