@@ -50,7 +50,7 @@ public class Raycaster {
     }
 
     private void buildMinimapBitmap() {
-        int CELL = 8;
+        int CELL = 4;
         int rows = Map.getRows();
         int cols = Map.getCols();
         minimapBitmap = Bitmap.createBitmap(
