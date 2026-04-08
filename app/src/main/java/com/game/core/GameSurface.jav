@@ -67,8 +67,8 @@ public class GameSurface extends SurfaceView
 
         // DERECHO — rotar cámara solamente, NO mueve posición
         float rot = joystick.getRotate();
-        if (Math.abs(rot) > 0.01f) {
-            player.angle += rot * 0.03f;
+        if (Math.abs(rot) > 0.02f) {
+            player.angle += rot * 0.02f;
         }
     }
 

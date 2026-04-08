@@ -56,7 +56,7 @@ public class Joystick {
                     }
                     if (id == rightId) {
                         float dx = e.getX(i) - rightTouchX;
-                        rightDX = dx / 120f;
+                        rightDX = (e.getX(i) - rightTouchX) / 300f;
                         rightTouchX = e.getX(i);
                     }
                 }
