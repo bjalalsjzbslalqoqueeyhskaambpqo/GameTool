@@ -4,11 +4,14 @@
 PlayerSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 26
-  productGUID: 00000000000000000000000000000000
+  productGUID: 4a9a4b2a2b2a4b2a2b2a4b2a2b2a4b2a
   companyName: GameTool
   productName: GameTool
   defaultScreenOrientation: 1
-  AndroidMinSdkVersion: 21
-  AndroidTargetSdkVersion: 33
+  targetDevice: 2
   applicationIdentifier:
     Android: com.gametool.game
+  AndroidBundleVersionCode: 1
+  AndroidMinSdkVersion: 21
+  AndroidTargetSdkVersion: 33
+  bundleVersion: 1.0

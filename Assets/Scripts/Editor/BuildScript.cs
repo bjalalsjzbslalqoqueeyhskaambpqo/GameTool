@@ -1,33 +1,32 @@
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
-using System;
+using System.IO;
 
 public class BuildScript
 {
-    [MenuItem("Build/Build Android")]
     public static void BuildAndroid()
     {
-        string[] scenes = { "Assets/Scenes/Main.unity" };
-        
-        BuildPlayerOptions options = new BuildPlayerOptions
+        string outputPath = "Builds/Android/GameTool.apk";
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
+
+        EditorBuildSettings.scenes = new EditorBuildSettingsScene[]
         {
-            scenes = scenes,
-            locationPathName = "Builds/Android/GameTool.apk",
-            target = BuildTarget.Android,
-            options = BuildOptions.Development
+            new EditorBuildSettingsScene("Assets/Scenes/SampleScene.unity", true)
         };
 
-        var report = BuildPipeline.BuildPlayer(options);
-        
-        if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
+        BuildPlayerOptions options = new BuildPlayerOptions
         {
-            Debug.LogError("Build failed!");
+            scenes = new[] { "Assets/Scenes/SampleScene.unity" },
+            locationPathName = outputPath,
+            target = BuildTarget.Android,
+            options = BuildOptions.None
+        };
+
+        BuildReport report = BuildPipeline.BuildPlayer(options);
+        if (report.summary.result != BuildResult.Succeeded)
+        {
             EditorApplication.Exit(1);
-        }
-        else
-        {
-            Debug.Log("Build succeeded!");
-            EditorApplication.Exit(0);
         }
     }
 }
