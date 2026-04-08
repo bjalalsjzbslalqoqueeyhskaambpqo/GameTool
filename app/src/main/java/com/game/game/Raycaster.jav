@@ -1,5 +1,6 @@
 package com.game.game;
 
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -9,25 +10,23 @@ import android.graphics.Shader;
 public class Raycaster {
     private static final float FOV      = (float)(Math.PI / 3);
     private static final float HALF_FOV = FOV / 2f;
-    private static final int   NUM_RAYS = 160;
+    private static final int   NUM_RAYS = 120;
     private static final float MAX_DIST = 220f;
     private static final float FOG_START = 8f;
 
     private final Paint paint = new Paint();
-    private final Paint scanlinePaint = new Paint();
     private final Paint torchPaint = new Paint();
     private final Paint vignettePaint = new Paint();
     private final Paint minimapPaint = new Paint();
 
     private final int screenW, screenH;
+    private Bitmap minimapBitmap;
 
     public Raycaster(int w, int h) {
         screenW = w;
         screenH = h;
 
         paint.setAntiAlias(false);
-
-        scanlinePaint.setColor(Color.argb(12, 0, 0, 0));
 
         RadialGradient torchGradient = new RadialGradient(
             screenW * 0.5f,
@@ -46,6 +45,29 @@ public class Raycaster {
             Color.argb(235, 0, 0, 0),
             Shader.TileMode.CLAMP);
         vignettePaint.setShader(vignetteGradient);
+
+        buildMinimapBitmap();
+    }
+
+    private void buildMinimapBitmap() {
+        int CELL = 8;
+        int rows = Map.getRows();
+        int cols = Map.getCols();
+        minimapBitmap = Bitmap.createBitmap(
+            cols * CELL, rows * CELL,
+            Bitmap.Config.RGB_565);
+        Canvas c = new Canvas(minimapBitmap);
+        Paint p = new Paint();
+        for (int r = 0; r < rows; r++) {
+            for (int col = 0; col < cols; col++) {
+                p.setColor(Map.isWall(col, r)
+                    ? Color.rgb(140, 60, 60)
+                    : Color.rgb(30, 30, 30));
+                c.drawRect(col * CELL, r * CELL,
+                    col * CELL + CELL - 1,
+                    r * CELL + CELL - 1, p);
+            }
+        }
     }
 
     public void render(Canvas canvas, Player player) {
@@ -96,14 +118,7 @@ public class Raycaster {
         }
 
         drawVignette(canvas);
-        drawScanlines(canvas);
         drawTorchGlow(canvas);
-    }
-
-    private void drawScanlines(Canvas canvas) {
-        for (int y = 0; y < screenH; y += 6) {
-            canvas.drawRect(0, y, screenW, y + 1, scanlinePaint);
-        }
     }
 
     private void drawTorchGlow(Canvas canvas) {
@@ -184,16 +199,8 @@ public class Raycaster {
         canvas.drawRect(offX-2, offY-2,
             offX+mmW+2, offY+mmH+2, minimapPaint);
 
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                minimapPaint.setColor(Map.isWall(c, r)
-                    ? Color.rgb(140, 60, 60)
-                    : Color.rgb(30, 30, 30));
-                canvas.drawRect(
-                    offX + c*CELL, offY + r*CELL,
-                    offX + c*CELL + CELL-1,
-                    offY + r*CELL + CELL-1, minimapPaint);
-            }
+        if (minimapBitmap != null) {
+            canvas.drawBitmap(minimapBitmap, offX, offY, null);
         }
 
         float px = offX + (player.x / Map.TILE) * CELL;
