@@ -1,67 +1,77 @@
 package com.game.input;
 
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
 import android.view.MotionEvent;
 
 public class Joystick {
-    private int screenW, screenH;
-    private float leftDX, leftDY;
-    private float rightDX;
-    private int leftId = -1, rightId = -1;
-    private float leftTouchX, leftTouchY;
-    private float rightTouchX, rightTouchY;
+    private int screenW;
 
-    public void init(int w, int h) {
-        screenW = w;
-        screenH = h;
-    }
+    private volatile float leftDX, leftDY;
+    private volatile float rightDX, rightDY;
+    private volatile int leftId  = -1;
+    private volatile int rightId = -1;
+    private volatile float leftStartX, leftStartY;
+    private volatile float rightStartX;
+    private volatile float rightLastX, rightLastY;
+
+    private static final float DEAD = 0.08f;
+    private static final float MAX  = 100f;
+
+    public void init(int w, int h) { screenW = w; }
 
     public float getMoveDX() { return leftDX; }
     public float getMoveDY() { return leftDY; }
     public float getRotate()  { return rightDX; }
+    public float getRotateY() { return rightDY; }
 
     public void handleTouch(MotionEvent e) {
         int action = e.getActionMasked();
-        int idx = e.getActionIndex();
-        int pid = e.getPointerId(idx);
+        int idx    = e.getActionIndex();
+        int pid    = e.getPointerId(idx);
+        float ex   = e.getX(idx);
+        float ey   = e.getY(idx);
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
-                float tx = e.getX(idx);
-                float ty = e.getY(idx);
-                if (tx < screenW / 2f && leftId == -1) {
-                    leftId = pid;
-                    leftTouchX = tx;
-                    leftTouchY = ty;
-                } else if (tx >= screenW / 2f && rightId == -1) {
-                    rightId = pid;
-                    rightTouchX = tx;
+                if (ex < screenW * 0.5f) {
+                    if (leftId == -1) {
+                        leftId = pid;
+                        leftStartX = ex;
+                        leftStartY = ey;
+                        leftDX = leftDY = 0;
+                    }
+                } else {
+                    if (rightId == -1) {
+                        rightId = pid;
+                        rightLastX = ex;
+                        rightLastY = ey;
+                        rightDX = rightDY = 0;
+                    }
                 }
                 break;
 
             case MotionEvent.ACTION_MOVE:
                 for (int i = 0; i < e.getPointerCount(); i++) {
                     int id = e.getPointerId(i);
+                    float mx = e.getX(i);
+                    float my = e.getY(i);
 
-                    // Izquierdo — joystick clásico con radio
                     if (id == leftId) {
-                        float dx = e.getX(i) - leftTouchX;
-                        float dy = e.getY(i) - leftTouchY;
+                        float dx = mx - leftStartX;
+                        float dy = my - leftStartY;
                         float len = (float)Math.sqrt(dx*dx+dy*dy);
-                        float max = 100f;
-                        if (len > max) { dx=dx/len*max; dy=dy/len*max; }
-                        leftDX = dx / max;
-                        leftDY = dy / max;
+                        if (len > MAX) { dx=dx/len*MAX; dy=dy/len*MAX; }
+                        leftDX = Math.abs(dx/MAX) > DEAD ? dx/MAX : 0;
+                        leftDY = Math.abs(dy/MAX) > DEAD ? dy/MAX : 0;
                     }
 
-                    // Derecho — delta acumulativo sensible
                     if (id == rightId) {
-                        float delta = e.getX(i) - rightTouchX;
-                        rightDX = delta / 35f;  // giro más rápido
-                        rightTouchX = e.getX(i);
+                        float ddx = mx - rightLastX;
+                        float ddy = my - rightLastY;
+                        rightDX = ddx / 180f;
+                        rightDY = ddy / 300f;
+                        rightLastX = mx;
+                        rightLastY = my;
                     }
                 }
                 break;
@@ -69,35 +79,15 @@ public class Joystick {
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_POINTER_UP:
             case MotionEvent.ACTION_CANCEL:
-                if (pid == leftId)  {
-                    leftId=-1; leftDX=0; leftDY=0;
+                if (pid == leftId) {
+                    leftId = -1;
+                    leftDX = leftDY = 0;
                 }
                 if (pid == rightId) {
-                    rightId=-1; rightDX=0;
+                    rightId = -1;
+                    rightDX = rightDY = 0;
                 }
                 break;
         }
-    }
-
-    public void draw(Canvas canvas, Paint paint) {
-        // Línea divisoria sutil
-        paint.setColor(Color.argb(30, 255, 255, 255));
-        paint.setStrokeWidth(2f);
-        canvas.drawLine(screenW/2f, 0, screenW/2f, screenH, paint);
-
-        // Indicador izquierdo
-        paint.setColor(Color.argb(0, 255, 255, 255));
-        paint.setStyle(Paint.Style.FILL);
-        canvas.drawRect(0, 0, screenW/2f, screenH, paint);
-
-        // Texto guía
-        paint.setColor(Color.argb(60, 255, 255, 255));
-        paint.setTextSize(28f);
-        paint.setTextAlign(Paint.Align.CENTER);
-        canvas.drawText("MOVER", screenW/4f, screenH-30, paint);
-        canvas.drawText("CAMARA", screenW*3/4f, screenH-30, paint);
-
-        paint.setStyle(Paint.Style.FILL);
-        paint.setTextAlign(Paint.Align.LEFT);
     }
 }
