@@ -10,8 +10,8 @@ public class Raycaster {
     private static final float FOV      = (float)(Math.PI / 3);
     private static final float HALF_FOV = FOV / 2f;
     private static final int   NUM_RAYS = 240;
-    private static final float MAX_DIST = 420f;
-    private static final float FOG_START = 40f;
+    private static final float MAX_DIST = 320f;
+    private static final float FOG_START = 20f;
 
     private Paint paint   = new Paint();
     private Paint fogPaint = new Paint();
@@ -25,10 +25,10 @@ public class Raycaster {
 
     public void render(Canvas canvas, Player player) {
         // Techo
-        paint.setColor(Color.rgb(8, 8, 12));
+        paint.setColor(Color.rgb(5, 5, 8));
         canvas.drawRect(0, 0, screenW, screenH/2f, paint);
         // Suelo
-        paint.setColor(Color.rgb(20, 16, 12));
+        paint.setColor(Color.rgb(12, 10, 8));
         canvas.drawRect(0, screenH/2f, screenW, screenH, paint);
 
         float angleStep = FOV / NUM_RAYS;
@@ -52,9 +52,9 @@ public class Raycaster {
                 (MAX_DIST - FOG_START)));
             fog = fog * fog; // curva cuadrática más dramática
 
-            int r = (int)(160 * fog);
-            int g = (int)(60  * fog);
-            int b = (int)(60  * fog);
+            int r = (int)(120 * fog);
+            int g = (int)(40  * fog);
+            int b = (int)(40  * fog);
 
             // Alternar tono para dar textura
             if (i % 2 == 0) {
@@ -81,7 +81,7 @@ public class Raycaster {
             screenW/2f, screenH/2f,
             Math.max(screenW, screenH) * 0.7f,
             Color.TRANSPARENT,
-            Color.argb(220, 0, 0, 0),
+            Color.argb(235, 0, 0, 0),
             Shader.TileMode.CLAMP);
         p.setShader(gradient);
         canvas.drawRect(0, 0, screenW, screenH, p);

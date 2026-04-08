@@ -49,7 +49,7 @@ public class GameSurface extends SurfaceView
 
     public void update() {
         // Movimiento — más lento
-        float spd = 1.3f;
+        float spd = 1.1f;
         float angle = player.angle;
         float forwardX = (float)Math.cos(angle);
         float forwardY = (float)Math.sin(angle);
@@ -69,7 +69,7 @@ public class GameSurface extends SurfaceView
         // Rotación cámara
         float rot = joystick.getRotate();
         if (Math.abs(rot) > 0.005f) {
-            player.angle += rot * 0.10f;
+            player.angle += rot * 0.16f;
         }
     }
 
