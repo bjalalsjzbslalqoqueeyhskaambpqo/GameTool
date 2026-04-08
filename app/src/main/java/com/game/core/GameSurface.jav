@@ -49,7 +49,7 @@ public class GameSurface extends SurfaceView
 
     public void update() {
         // Movimiento — más lento
-        float spd = 1.1f;
+        float spd = 0.9f;
         float angle = player.angle;
         float forwardX = (float)Math.cos(angle);
         float forwardY = (float)Math.sin(angle);
