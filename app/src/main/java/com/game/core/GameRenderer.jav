@@ -10,18 +10,28 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
-import com.game.input.Joystick;
 import com.game.game.Map;
 import com.game.game.Player;
 import com.game.game.Raycaster;
 
 public class GameRenderer implements GLSurfaceView.Renderer {
 
+
+    public volatile int   leftId     = -1;
+    public volatile int   rightId    = -1;
+    public volatile float leftStartX = 0;
+    public volatile float leftStartY = 0;
+    public volatile float leftDX     = 0;
+    public volatile float leftDY     = 0;
+    public volatile float rightLastX = 0;
+    public volatile float rightLastY = 0;
+    public volatile float rightDX    = 0;
+    public volatile float rightDY    = 0;
+
     private static final int RW = 320;
     private static final int RH = 200;
 
     private final Context  ctx;
-    private final Joystick joystick;
     private Player   player;
     private Raycaster raycaster;
 
@@ -36,7 +46,6 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private long  prevTime;
     private float delta = 1f;
     private long  frameCount = 0;
-    private final float[] inputSnapshot = new float[3];
 
     private static final String VERT_SRC =
         "attribute vec2 aPos;" +
@@ -62,9 +71,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
          1f, -1f,  1f, 1f,
     };
 
-    public GameRenderer(Context ctx, Joystick joystick) {
-        this.ctx      = ctx;
-        this.joystick = joystick;
+    public GameRenderer(Context ctx) {
+        this.ctx = ctx;
     }
 
     @Override
@@ -106,15 +114,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         GLES20.glViewport(0, 0, w, h);
     }
 
-    private void snapshotInput() {
-        inputSnapshot[0] = joystick.getMoveDX();
-        inputSnapshot[1] = joystick.getMoveDY();
-        inputSnapshot[2] = joystick.getRotate();
-    }
 
     @Override
     public void onDrawFrame(GL10 gl) {
-        snapshotInput();
         long now = System.nanoTime();
         delta = Math.min((now - prevTime) / 16_666_667f, 3f);
         prevTime = now;
@@ -150,26 +152,33 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         drawHUD(gl);
     }
 
+    private float pitch = 0f;
+
     private void update() {
-        float spd   = 1.4f * delta;
+        float spd = 1.4f * delta;
         float angle = player.angle;
         float fx = (float)Math.cos(angle);
         float fy = (float)Math.sin(angle);
         float rx = (float)Math.cos(angle + Math.PI/2);
         float ry = (float)Math.sin(angle + Math.PI/2);
 
-        float jx = inputSnapshot[0];
-        float jy = inputSnapshot[1];
-        float rot = inputSnapshot[2];
-
-        if (Math.abs(jx) > 0.08f || Math.abs(jy) > 0.08f) {
-            player.move((fx * (-jy) + rx * jx) * spd,
-                        (fy * (-jy) + ry * jx) * spd);
+        float jx = leftDX;
+        float jy = leftDY;
+        if (Math.abs(jx) > 0.05f || Math.abs(jy) > 0.05f) {
+            player.move(
+                (fx*(-jy) + rx*jx) * spd,
+                (fy*(-jy) + ry*jx) * spd);
         }
 
-        if (Math.abs(rot) > 0.008f) {
-            player.angle += rot * 0.045f * delta;
-        }
+        if (Math.abs(rightDX) > 0.005f)
+            player.angle += rightDX * 0.045f * delta;
+
+        if (Math.abs(rightDY) > 0.005f)
+            pitch = Math.max(-0.4f,
+                Math.min(0.4f, pitch + rightDY * 0.03f * delta));
+
+        rightDX = 0;
+        rightDY = 0;
     }
 
     private void drawHUD(GL10 gl) {
