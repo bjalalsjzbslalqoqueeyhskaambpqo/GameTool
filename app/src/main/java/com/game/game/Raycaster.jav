@@ -21,7 +21,7 @@ public class Raycaster {
 
     private final int[]    screenBuf;
     private final Bitmap   screenBmp;
-    private final float[]  zBuf;
+    private final float[]  zBuf = new float[NUM_RAYS];
 
     private final Paint vignette = new Paint();
     private Bitmap minimapBmp;
@@ -32,7 +32,6 @@ public class Raycaster {
         paint.setAntiAlias(false);
         screenBuf = new int[W * H];
         screenBmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
-        zBuf = new float[W];
 
         RadialGradient vg = new RadialGradient(
             W/2f, H/2f, Math.max(W,H)*0.65f,
@@ -41,13 +40,8 @@ public class Raycaster {
         vignette.setShader(vg);
     }
 
-    public Raycaster(android.content.Context ctx, int w, int h) {
-        this(w, h);
-        Assets.load(ctx);
-    }
-
-    public void render(Canvas canvas, Player player) {
-        frameCount++;
+    public void render(int[] pixelBuf, Player player, long extFrameCount) {
+        frameCount = extFrameCount;
         float px = player.x / Map.TILE;
         float py = player.y / Map.TILE;
         float angle = player.angle;
@@ -96,7 +90,7 @@ public class Raycaster {
                 ? (mapY - py + (1-stepY)/2f) / rayDirY
                 : (mapX - px + (1-stepX)/2f) / rayDirX;
             perpDist = Math.max(0.0001f, perpDist);
-            zBuf[x] = perpDist;
+            if (x < zBuf.length) zBuf[x] = perpDist;
 
             int lineH = (int)(H / perpDist);
             int drawStart = Math.max(0, HALF_H - lineH/2);
@@ -166,8 +160,9 @@ public class Raycaster {
         }
 
         screenBmp.setPixels(screenBuf, 0, W, 0, 0, W, H);
-        canvas.drawBitmap(screenBmp, 0, 0, null);
-        canvas.drawRect(0, 0, W, H, vignette);
+        Canvas c = new Canvas(screenBmp);
+        c.drawRect(0, 0, W, H, vignette);
+        screenBmp.getPixels(pixelBuf, 0, W, 0, 0, W, H);
     }
 
     public void buildMinimap() {

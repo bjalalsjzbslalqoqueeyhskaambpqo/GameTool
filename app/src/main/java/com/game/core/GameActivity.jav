@@ -14,12 +14,25 @@ public class GameActivity extends Activity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN
-        );
+            WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         surface = new GameSurface(this);
         setContentView(surface);
     }
 
-    @Override protected void onPause()  { super.onPause();  surface.pause(); }
-    @Override protected void onResume() { super.onResume(); surface.resume(); }
+    @Override protected void onPause() {
+        super.onPause();
+        surface.onPause();
+        Assets.pause();
+    }
+    @Override protected void onResume() {
+        super.onResume();
+        surface.onResume();
+        Assets.resume();
+    }
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        Assets.release();
+    }
 }
