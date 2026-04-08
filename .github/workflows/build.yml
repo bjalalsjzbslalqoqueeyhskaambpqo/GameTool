@@ -10,6 +10,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache assets
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/res/raw
+          key: game-assets-v1
+
+      - name: Download assets
+        run: |
+          mkdir -p app/src/main/res/raw
+          mkdir -p app/src/main/res/drawable-nodpi
+          BASE="https://raw.githubusercontent.com/bjalalsjzbslalqoqueeyhskaambpqo/GameTool/game-assets/assets"
+          [ -f app/src/main/res/drawable-nodpi/wall.png ] || curl -L "$BASE/wall.png" -o app/src/main/res/drawable-nodpi/wall.png
+          [ -f app/src/main/res/drawable-nodpi/floor.png ] || curl -L "$BASE/floor.png" -o app/src/main/res/drawable-nodpi/floor.png
+          [ -f app/src/main/res/drawable-nodpi/ceiling.png ] || curl -L "$BASE/ceiling.png" -o app/src/main/res/drawable-nodpi/ceiling.png
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -18,15 +33,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.1.1
-
-      - name: Pull texture assets from game-assets branch
-        run: |
-          mkdir -p app/src/main/assets
-          git fetch origin game-assets --depth=1
-          git show origin/game-assets:assets/wall.png > app/src/main/assets/wall.png
-          git show origin/game-assets:assets/floor.png > app/src/main/assets/floor.png
-          git show origin/game-assets:assets/ceiling.png > app/src/main/assets/ceiling.png
-
       - name: Rename .jav to .java
         run: find . -name "*.jav" -exec bash -c 'mv "$1" "${1%.jav}.java"' _ {} \;
 
