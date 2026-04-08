@@ -36,6 +36,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private long  prevTime;
     private float delta = 1f;
     private long  frameCount = 0;
+    private final float[] inputSnapshot = new float[3];
 
     private static final String VERT_SRC =
         "attribute vec2 aPos;" +
@@ -105,8 +106,15 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         GLES20.glViewport(0, 0, w, h);
     }
 
+    private void snapshotInput() {
+        inputSnapshot[0] = joystick.getMoveDX();
+        inputSnapshot[1] = joystick.getMoveDY();
+        inputSnapshot[2] = joystick.getRotate();
+    }
+
     @Override
     public void onDrawFrame(GL10 gl) {
+        snapshotInput();
         long now = System.nanoTime();
         delta = Math.min((now - prevTime) / 16_666_667f, 3f);
         prevTime = now;
@@ -150,12 +158,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         float rx = (float)Math.cos(angle + Math.PI/2);
         float ry = (float)Math.sin(angle + Math.PI/2);
 
-        // Snapshot de input por frame para minimizar inconsistencias entre threads
-        float jx = joystick.getMoveDX();
-        float jy = joystick.getMoveDY();
-        float rot = joystick.getRotate();
-
-        android.util.Log.d("INPUT", "dx=" + jx + " dy=" + jy);
+        float jx = inputSnapshot[0];
+        float jy = inputSnapshot[1];
+        float rot = inputSnapshot[2];
 
         if (Math.abs(jx) > 0.08f || Math.abs(jy) > 0.08f) {
             player.move((fx * (-jy) + rx * jx) * spd,
