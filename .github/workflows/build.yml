@@ -19,6 +19,14 @@ jobs:
         with:
           gradle-version: 8.1.1
 
+      - name: Pull texture assets from game-assets branch
+        run: |
+          mkdir -p app/src/main/assets
+          git fetch origin game-assets --depth=1
+          git show origin/game-assets:assets/wall.png > app/src/main/assets/wall.png
+          git show origin/game-assets:assets/floor.png > app/src/main/assets/floor.png
+          git show origin/game-assets:assets/ceiling.png > app/src/main/assets/ceiling.png
+
       - name: Rename .jav to .java
         run: find . -name "*.jav" -exec bash -c 'mv "$1" "${1%.jav}.java"' _ {} \;
 
