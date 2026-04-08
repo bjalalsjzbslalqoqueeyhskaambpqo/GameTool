@@ -48,21 +48,28 @@ public class GameSurface extends SurfaceView
     @Override public void surfaceDestroyed(SurfaceHolder h){ pause(); }
 
     public void update() {
-        float spd = 2.5f;
+        float spd = 1.5f;
 
-        // Movimiento relativo a donde mira el jugador
-        float dx = joystick.getMoveDX();
-        float dy = joystick.getMoveDY();
+        // IZQUIERDO — mover personaje en el mundo
+        // La cámara NO cambia, solo la posición X,Y
+        float angle = player.angle;
+        float forwardX = (float) Math.cos(angle);
+        float forwardY = (float) Math.sin(angle);
+        float rightX   = (float) Math.cos(angle + Math.PI/2);
+        float rightY   = (float) Math.sin(angle + Math.PI/2);
 
-        float moveX = (float)(Math.cos(player.angle) * (-dy)
-                    + Math.cos(player.angle + Math.PI/2) * dx) * spd;
-        float moveY = (float)(Math.sin(player.angle) * (-dy)
-                    + Math.sin(player.angle + Math.PI/2) * dx) * spd;
+        float moveX = forwardX * (-joystick.getMoveDY())
+                    + rightX   * joystick.getMoveDX();
+        float moveY = forwardY * (-joystick.getMoveDY())
+                    + rightY   * joystick.getMoveDX();
 
-        player.move(moveX, moveY);
+        player.move(moveX * spd, moveY * spd);
 
-        // Rotar cámara con lado derecho
-        player.angle += joystick.getRotate() * 0.05f;
+        // DERECHO — rotar cámara solamente, NO mueve posición
+        float rot = joystick.getRotate();
+        if (Math.abs(rot) > 0.01f) {
+            player.angle += rot * 0.03f;
+        }
     }
 
     public void draw(Canvas canvas) {
