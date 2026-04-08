@@ -35,8 +35,8 @@ public class GameSurface extends SurfaceView
         joystick.init(W, H);
 
         // Spawn en centro del mapa
-        float startX = Map.TILE * 7.5f;
-        float startY = Map.TILE * 7.5f;
+        float startX = Map.TILE * 1.5f;
+        float startY = Map.TILE * 1.5f;
         player = new Player(startX, startY);
         raycaster = new Raycaster(W, H);
 

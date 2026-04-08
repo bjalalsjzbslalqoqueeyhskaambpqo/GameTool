@@ -6,7 +6,7 @@
         <activity
             android:name=".core.GameActivity"
             android:exported="true"
-            android:screenOrientation="portrait"
+            android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
