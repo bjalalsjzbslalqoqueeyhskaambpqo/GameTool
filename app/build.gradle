@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
 }
+
 android {
     namespace 'com.game'
     compileSdk 33
@@ -15,4 +16,10 @@ android {
         debug { debuggable true }
     }
 }
+
+repositories {
+    google()
+    mavenCentral()
+}
+
 dependencies {}
