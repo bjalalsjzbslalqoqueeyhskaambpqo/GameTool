@@ -73,6 +73,34 @@ public class Raycaster {
 
         // Viñeta oscura en bordes
         drawVignette(canvas);
+
+        // Efectos ligeros de ambiente
+        drawScanlines(canvas);
+        drawTorchGlow(canvas);
+    }
+
+
+
+    private void drawScanlines(Canvas canvas) {
+        Paint p = new Paint();
+        p.setColor(Color.argb(18, 0, 0, 0));
+        for (int y = 0; y < screenH; y += 4) {
+            canvas.drawRect(0, y, screenW, y + 1, p);
+        }
+    }
+
+    private void drawTorchGlow(Canvas canvas) {
+        Paint p = new Paint();
+        float cx = screenW * 0.5f;
+        float cy = screenH * 0.6f;
+        RadialGradient g = new RadialGradient(
+            cx, cy,
+            Math.min(screenW, screenH) * 0.35f,
+            Color.argb(20, 255, 160, 90),
+            Color.TRANSPARENT,
+            Shader.TileMode.CLAMP);
+        p.setShader(g);
+        canvas.drawRect(0, 0, screenW, screenH, p);
     }
 
     private void drawVignette(Canvas canvas) {
