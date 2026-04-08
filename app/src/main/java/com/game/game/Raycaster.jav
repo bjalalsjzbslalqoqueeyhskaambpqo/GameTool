@@ -7,32 +7,41 @@ import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 
+import java.util.Random;
+
 public class Raycaster {
     private static final float FOV      = (float)(Math.PI / 3);
     private static final float HALF_FOV = FOV / 2f;
     private static final int   NUM_RAYS = 180;
-    private static final float MAX_DIST = 220f;
-    private static final float FOG_START = 8f;
+    private static final float MAX_DIST = Map.TILE * 6f;
 
     private final Paint paint = new Paint();
     private final Paint torchPaint = new Paint();
     private final Paint vignettePaint = new Paint();
     private final Paint minimapPaint = new Paint();
+    private final Paint noisePaint = new Paint();
+    private final Random noiseRandom = new Random();
 
     private final int screenW, screenH;
     private Bitmap minimapBitmap;
+
+    private static class Hit {
+        float dist;
+        boolean vertical;
+    }
 
     public Raycaster(int w, int h) {
         screenW = w;
         screenH = h;
 
         paint.setAntiAlias(false);
+        noisePaint.setColor(Color.argb(20, 255, 255, 255));
 
         RadialGradient torchGradient = new RadialGradient(
             screenW * 0.5f,
             screenH * 0.6f,
-            Math.min(screenW, screenH) * 0.35f,
-            Color.argb(20, 255, 160, 90),
+            Math.min(screenW, screenH) * 0.40f,
+            Color.argb(28, 255, 180, 100),
             Color.TRANSPARENT,
             Shader.TileMode.CLAMP);
         torchPaint.setShader(torchGradient);
@@ -40,9 +49,9 @@ public class Raycaster {
         RadialGradient vignetteGradient = new RadialGradient(
             screenW/2f,
             screenH/2f,
-            Math.max(screenW, screenH) * 0.7f,
+            Math.max(screenW, screenH) * 0.72f,
             Color.TRANSPARENT,
-            Color.argb(235, 0, 0, 0),
+            Color.argb(245, 0, 0, 0),
             Shader.TileMode.CLAMP);
         vignettePaint.setShader(vignetteGradient);
 
@@ -71,60 +80,69 @@ public class Raycaster {
     }
 
     public void render(Canvas canvas, Player player) {
-        // Techo
-        paint.setColor(Color.rgb(5, 5, 8));
-        canvas.drawRect(0, 0, screenW, screenH/2f, paint);
-        // Suelo
-        paint.setColor(Color.rgb(12, 10, 8));
-        canvas.drawRect(0, screenH/2f, screenW, screenH, paint);
+        float time = System.nanoTime() * 1e-9f;
+        float breathe = (float)Math.sin(time * 2f) * 3f;
+        float horizon = screenH / 2f + breathe;
+
+        // Techo (gradiente inverso)
+        for (int y = 0; y < horizon; y += 4) {
+            float t = y / Math.max(1f, horizon);
+            int c = (int)(18 - t * 10);
+            paint.setColor(Color.rgb(c, c, c + 3));
+            canvas.drawRect(0, y, screenW, y + 4, paint);
+        }
+
+        // Suelo (más oscuro hacia el centro)
+        for (int y = (int)horizon; y < screenH; y += 4) {
+            float t = (y - horizon) / Math.max(1f, (screenH - horizon));
+            int c = (int)(25 + t * 8);
+            int centerDark = (int)(Math.abs((y - horizon) / (screenH - horizon) - 0.5f) * 25f);
+            c = Math.max(8, c - centerDark);
+            paint.setColor(Color.rgb(c, c - 2, c - 5));
+            canvas.drawRect(0, y, screenW, y + 4, paint);
+        }
 
         float angleStep = FOV / NUM_RAYS;
-        float sliceW    = (float)screenW / NUM_RAYS;
-        float[] heights = new float[NUM_RAYS];
-        float[] fogs = new float[NUM_RAYS];
+        float sliceW = (float)screenW / NUM_RAYS;
 
         for (int i = 0; i < NUM_RAYS; i++) {
             float rayAngle = player.angle - HALF_FOV + i * angleStep;
-            float dist = castRay(player.x, player.y, rayAngle);
-            float corrected = dist * (float)Math.cos(rayAngle - player.angle);
-
-            heights[i] = Math.min((Map.TILE * screenH) / (corrected + 0.001f), screenH);
-
-            float fog = 1f - Math.min(1f,
-                Math.max(0f, (corrected - FOG_START) / (MAX_DIST - FOG_START)));
-            fogs[i] = fog * fog;
-        }
-
-        for (int i = 0; i < NUM_RAYS; i++) {
-            float fog = fogs[i];
-            if (i > 0 && i < NUM_RAYS - 1) {
-                fog = (fogs[i - 1] + fogs[i] + fogs[i + 1]) / 3f;
-            }
-
-            float wallH = heights[i];
-            float top  = (screenH - wallH) / 2f;
+            Hit hit = castRay(player.x, player.y, rayAngle);
+            float corrected = hit.dist * (float)Math.cos(rayAngle - player.angle);
+            float wallH = Math.min((Map.TILE * screenH) / (corrected + 0.001f), screenH);
+            float top = horizon - wallH / 2f;
             float left = i * sliceW;
 
-            int r = (int)(120 * fog);
-            int g = (int)(40  * fog);
-            int b = (int)(40  * fog);
+            float flicker = 0.92f + 0.08f * (float)Math.sin(time * 8f);
+            float light = Math.max(0.02f, 1f - (corrected / MAX_DIST));
+            light = light * light * flicker;
 
-            if (i % 2 == 0) {
-                r = (int)(r * 0.85f);
-                g = (int)(g * 0.85f);
-                b = (int)(b * 0.85f);
-            }
+            int baseR = hit.vertical ? 75 : 55;
+            int baseG = hit.vertical ? 75 : 55;
+            int baseB = hit.vertical ? 80 : 60;
+
+            int r = (int)(baseR * light);
+            int g = (int)(baseG * light);
+            int b = (int)(baseB * light);
 
             paint.setColor(Color.rgb(
                 Math.max(0, Math.min(255, r)),
                 Math.max(0, Math.min(255, g)),
                 Math.max(0, Math.min(255, b))));
-            canvas.drawRect(left, top,
-                left + sliceW + 1, top + wallH, paint);
+            canvas.drawRect(left, top, left + sliceW + 1, top + wallH, paint);
         }
 
         drawVignette(canvas);
         drawTorchGlow(canvas);
+        drawFilmNoise(canvas);
+    }
+
+    private void drawFilmNoise(Canvas canvas) {
+        for (int i = 0; i < 200; i++) {
+            float x = noiseRandom.nextInt(screenW);
+            float y = noiseRandom.nextInt(screenH);
+            canvas.drawPoint(x, y, noisePaint);
+        }
     }
 
     private void drawTorchGlow(Canvas canvas) {
@@ -135,7 +153,7 @@ public class Raycaster {
         canvas.drawRect(0, 0, screenW, screenH, vignettePaint);
     }
 
-    private float castRay(float px, float py, float angle) {
+    private Hit castRay(float px, float py, float angle) {
         float dirX = (float)Math.cos(angle);
         float dirY = (float)Math.sin(angle);
 
@@ -170,25 +188,30 @@ public class Raycaster {
             sideDistY = (((mapY + 1) * tile) - py) * Math.abs(invDirY);
         }
 
-        float dist = MAX_DIST;
+        Hit hit = new Hit();
+        hit.dist = MAX_DIST;
         for (int i = 0; i < 256; i++) {
             if (sideDistX < sideDistY) {
-                dist = sideDistX;
+                hit.dist = sideDistX;
                 sideDistX += deltaDistX;
                 mapX += stepX;
+                hit.vertical = true;
             } else {
-                dist = sideDistY;
+                hit.dist = sideDistY;
                 sideDistY += deltaDistY;
                 mapY += stepY;
+                hit.vertical = false;
             }
 
             if (Map.isWall(mapX, mapY)) {
-                return Math.min(dist, MAX_DIST);
+                hit.dist = Math.min(hit.dist, MAX_DIST);
+                return hit;
             }
-            if (dist >= MAX_DIST) break;
+            if (hit.dist >= MAX_DIST) break;
         }
 
-        return MAX_DIST;
+        hit.dist = MAX_DIST;
+        return hit;
     }
 
     // Minimap
