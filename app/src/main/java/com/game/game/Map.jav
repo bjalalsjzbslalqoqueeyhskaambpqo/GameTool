@@ -1,0 +1,40 @@
+package com.game.game;
+
+public class Map {
+    public static final int TILE = 64;
+
+    // 0 = pasillo, 1 = pared
+    public static final int[][] grid = {
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1},
+        {1,0,1,0,0,0,1,1,0,1,0,0,0,1,0,1},
+        {1,0,1,0,1,0,0,0,0,1,0,1,0,1,0,1},
+        {1,0,0,0,1,1,0,1,0,0,0,0,0,0,0,1},
+        {1,1,0,1,0,0,0,1,1,0,1,1,0,1,0,1},
+        {1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1},
+        {1,0,1,1,0,0,0,1,0,1,0,0,0,1,0,1},
+        {1,0,0,1,0,1,0,1,0,1,0,1,0,0,0,1},
+        {1,0,1,0,0,1,0,0,0,0,0,1,0,1,0,1},
+        {1,0,0,0,1,0,0,1,1,0,0,0,0,0,0,1},
+        {1,1,0,1,0,0,1,0,0,0,1,0,1,0,1,1},
+        {1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,1},
+        {1,0,1,0,1,0,0,1,0,0,1,0,1,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+    };
+
+    public static int getRows() { return grid.length; }
+    public static int getCols() { return grid[0].length; }
+
+    public static boolean isWall(int col, int row) {
+        if (row < 0 || row >= getRows()) return true;
+        if (col < 0 || col >= getCols()) return true;
+        return grid[row][col] == 1;
+    }
+
+    public static boolean isWallAt(float worldX, float worldY) {
+        int col = (int)(worldX / TILE);
+        int row = (int)(worldY / TILE);
+        return isWall(col, row);
+    }
+}
