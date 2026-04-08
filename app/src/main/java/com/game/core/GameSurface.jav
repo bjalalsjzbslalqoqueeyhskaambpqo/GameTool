@@ -16,7 +16,8 @@ public class GameSurface extends SurfaceView
         implements SurfaceHolder.Callback {
 
     private GameLoop   gameLoop;
-    private Joystick   joystick;
+    private Joystick   joyLeft;
+    private Joystick   joyRight;
     private Paint      paint;
     private Player     player;
     private Raycaster  raycaster;
@@ -25,14 +26,18 @@ public class GameSurface extends SurfaceView
         super(context);
         getHolder().addCallback(this);
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        joystick = new Joystick();
+        joyLeft = new Joystick();
+        joyLeft.side = "left";
+        joyRight = new Joystick();
+        joyRight.side = "right";
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         int W = getWidth();
         int H = getHeight();
-        joystick.init(W, H);
+        joyLeft.init(W, H);
+        joyRight.init(W, H);
 
         // Spawn en centro del mapa
         float startX = Map.TILE * 1.5f;
@@ -48,15 +53,21 @@ public class GameSurface extends SurfaceView
     @Override public void surfaceDestroyed(SurfaceHolder h){ pause(); }
 
     public void update() {
-        float spd = 3.5f;
-        float dx = joystick.getDX() * spd;
-        float dy = joystick.getDY() * spd;
-        player.move(dx, dy);
+        float spd = 2f;
+        float angle = player.angle;
+        float moveX = (float)(Math.cos(angle) * joyLeft.getDY() * (-spd)
+                + Math.cos(angle + Math.PI / 2f) * joyLeft.getDX() * spd);
+        float moveY = (float)(Math.sin(angle) * joyLeft.getDY() * (-spd)
+                + Math.sin(angle + Math.PI / 2f) * joyLeft.getDX() * spd);
+
+        player.move(moveX, moveY);
+        player.angle += joyRight.getDX() * 0.04f;
     }
 
     public void draw(Canvas canvas) {
         raycaster.render(canvas, player);
-        joystick.draw(canvas, paint);
+        joyLeft.draw(canvas, paint);
+        joyRight.draw(canvas, paint);
 
         // Viñeta oscura en bordes para más inmersión
         paint.setColor(Color.argb(120, 0, 0, 0));
@@ -70,7 +81,8 @@ public class GameSurface extends SurfaceView
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        joystick.handleTouch(event);
+        joyLeft.handleTouch(event);
+        joyRight.handleTouch(event);
         return true;
     }
 

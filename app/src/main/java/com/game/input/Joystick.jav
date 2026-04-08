@@ -6,6 +6,8 @@ import android.graphics.Paint;
 import android.view.MotionEvent;
 
 public class Joystick {
+    public String side; // "left" o "right"
+
     private float baseX, baseY;
     private float knobX, knobY;
     private float baseR = 120f;
@@ -13,9 +15,16 @@ public class Joystick {
     private float dx, dy;
     private boolean active = false;
     private int touchId = -1;
+    private int screenW;
 
     public void init(int screenW, int screenH) {
-        baseX = knobX = baseR + 40;
+        this.screenW = screenW;
+        boolean right = "right".equals(side);
+        if (right) {
+            baseX = knobX = screenW - baseR - 40;
+        } else {
+            baseX = knobX = baseR + 40;
+        }
         baseY = knobY = screenH - baseR - 40;
     }
 
@@ -31,6 +40,11 @@ public class Joystick {
          || action == MotionEvent.ACTION_POINTER_DOWN) {
             float tx = e.getX(idx);
             float ty = e.getY(idx);
+            boolean isLeftTouch = tx < screenW / 2f;
+            if (("left".equals(side) && !isLeftTouch)
+             || ("right".equals(side) && isLeftTouch)) {
+                return;
+            }
             float dist = (float) Math.hypot(tx - baseX, ty - baseY);
             if (!active && dist < baseR * 1.5f) {
                 active = true;
