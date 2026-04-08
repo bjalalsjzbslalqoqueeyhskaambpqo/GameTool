@@ -155,7 +155,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private float pitch = 0f;
 
     private void update() {
-        float spd = 1.4f * delta;
+        float spd = 0.9f * delta;
         float angle = player.angle;
         float fx = (float)Math.cos(angle);
         float fy = (float)Math.sin(angle);

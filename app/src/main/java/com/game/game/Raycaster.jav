@@ -12,7 +12,7 @@ public class Raycaster {
 
     private static final float FOV      = (float)(Math.PI / 3.0);
     private static final int   NUM_RAYS = 320;
-    private static final float MAX_DIST = 8f;
+    private static final float MAX_DIST = 5f;
 
     private final int   W, H;
     private final int   HALF_H;
@@ -107,7 +107,7 @@ public class Raycaster {
             texX = Math.max(0, Math.min(texW-1, texX));
 
             float fog  = Math.max(0f, 1f - perpDist / MAX_DIST);
-            fog = fog * fog * fog * torchFlicker;
+            fog = fog * fog * fog * fog * torchFlicker;
             float dark = sideHit ? 0.6f : 1.0f;
             float bright = fog * dark;
 
