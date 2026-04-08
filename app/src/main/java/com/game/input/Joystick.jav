@@ -86,7 +86,7 @@ public class Joystick {
         canvas.drawLine(screenW/2f, 0, screenW/2f, screenH, paint);
 
         // Indicador izquierdo
-        paint.setColor(Color.argb(25, 255, 255, 255));
+        paint.setColor(Color.argb(0, 255, 255, 255));
         paint.setStyle(Paint.Style.FILL);
         canvas.drawRect(0, 0, screenW/2f, screenH, paint);
 
