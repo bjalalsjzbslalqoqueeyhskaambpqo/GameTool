@@ -60,7 +60,7 @@ public class Joystick {
                     // Derecho — delta acumulativo sensible
                     if (id == rightId) {
                         float delta = e.getX(i) - rightTouchX;
-                        rightDX = delta / 80f;  // más sensible
+                        rightDX = delta / 35f;  // giro más rápido
                         rightTouchX = e.getX(i);
                     }
                 }

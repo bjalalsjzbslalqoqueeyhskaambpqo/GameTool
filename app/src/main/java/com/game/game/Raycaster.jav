@@ -10,8 +10,8 @@ public class Raycaster {
     private static final float FOV      = (float)(Math.PI / 3);
     private static final float HALF_FOV = FOV / 2f;
     private static final int   NUM_RAYS = 240;
-    private static final float MAX_DIST = 320f;
-    private static final float FOG_START = 20f;
+    private static final float MAX_DIST = 220f;
+    private static final float FOG_START = 8f;
 
     private Paint paint   = new Paint();
     private Paint fogPaint = new Paint();

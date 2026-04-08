@@ -69,7 +69,7 @@ public class GameSurface extends SurfaceView
         // Rotación cámara
         float rot = joystick.getRotate();
         if (Math.abs(rot) > 0.005f) {
-            player.angle += rot * 0.16f;
+            player.angle += rot * 0.22f;
         }
     }
 

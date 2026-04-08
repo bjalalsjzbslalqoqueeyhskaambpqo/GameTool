@@ -1,7 +1,7 @@
 package com.game.game;
 
 public class Map {
-    public static final int TILE = 36;
+    public static final int TILE = 34;
 
     // 0 = pasillo, 1 = pared
     public static final int[][] grid = {
