@@ -55,7 +55,7 @@ public class GameSurface extends GLSurfaceView {
                         renderer.leftDY = dy / max;
                     }
                     if (id == renderer.rightId) {
-                        renderer.rightDX = (e.getX(i) - renderer.rightLastX) / 180f;
+                        renderer.rightDX = (e.getX(i) - renderer.rightLastX) / 90f;
                         renderer.rightDY = (e.getY(i) - renderer.rightLastY) / 300f;
                         renderer.rightLastX = e.getX(i);
                         renderer.rightLastY = e.getY(i);

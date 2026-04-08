@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
+import android.media.AudioTrack;
 
 public class Assets {
     public static int[] wallPixels;
@@ -11,6 +12,8 @@ public class Assets {
     public static int[] ceilPixels;
     public static int texW = 64, texH = 64;
     private static MediaPlayer ambient;
+    private static AudioTrack stepsTrack;
+    private static boolean wasMoving = false;
 
     public static void load(Context ctx) {
         BitmapFactory.Options o = new BitmapFactory.Options();
@@ -87,6 +90,55 @@ public class Assets {
         return p;
     }
 
+
+    public static void updateSteps(boolean isMoving) {
+        if (isMoving && !wasMoving) startSteps();
+        if (!isMoving && wasMoving) stopSteps();
+        wasMoving = isMoving;
+    }
+
+    private static void startSteps() {
+        if (stepsTrack != null) {
+            stepsTrack.play();
+            return;
+        }
+        int rate = 22050;
+        int stepLen = rate / 2;
+        short[] buf = new short[stepLen * 2];
+        java.util.Random r = new java.util.Random();
+        for (int s = 0; s < 2; s++) {
+            int off = s * stepLen;
+            int hit = (int)(stepLen * 0.05f);
+            for (int i = 0; i < stepLen; i++) {
+                float t = (float)i / rate;
+                float env = i < hit
+                    ? (float)i/hit
+                    : (float)Math.exp(-(i-hit) * 8.0/rate);
+                double thud = Math.sin(2*Math.PI*120*t) * 0.6;
+                double noise = (r.nextDouble()-0.5) * 0.4;
+                double crack = i < hit*2
+                    ? (r.nextDouble()-0.5)*0.8 : 0;
+                buf[off+i] = (short)((thud+noise+crack)*env
+                    * Short.MAX_VALUE * 0.7);
+            }
+        }
+        stepsTrack = new AudioTrack(
+            android.media.AudioManager.STREAM_MUSIC,
+            rate,
+            android.media.AudioFormat.CHANNEL_OUT_MONO,
+            android.media.AudioFormat.ENCODING_PCM_16BIT,
+            buf.length * 2,
+            AudioTrack.MODE_STATIC);
+        stepsTrack.write(buf, 0, buf.length);
+        stepsTrack.setLoopPoints(0, buf.length, -1);
+        stepsTrack.setPlaybackRate((int)(rate * 0.95f));
+        stepsTrack.play();
+    }
+
+    private static void stopSteps() {
+        if (stepsTrack != null) stepsTrack.pause();
+    }
+
     public static void pause()  {
         if (ambient != null && ambient.isPlaying()) ambient.pause();
     }
@@ -95,5 +147,6 @@ public class Assets {
     }
     public static void release() {
         if (ambient != null) { ambient.release(); ambient = null; }
+        if (stepsTrack != null) { stepsTrack.release(); stepsTrack = null; }
     }
 }

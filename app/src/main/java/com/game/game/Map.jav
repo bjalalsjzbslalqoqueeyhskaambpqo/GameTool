@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.Random;
 
 public class Map {
-    public static final int TILE = 64;
+    public static final int TILE = 48;
     public static final int COLS = 41;
     public static final int ROWS = 41;
 
