@@ -20,6 +20,8 @@ public class GameSurface extends SurfaceView
     private Paint      paint;
     private Player     player;
     private Raycaster  raycaster;
+    private long       lastFrameNs = 0L;
+    private float      fps = 0f;
 
     public GameSurface(Context context) {
         super(context);
@@ -48,8 +50,15 @@ public class GameSurface extends SurfaceView
     @Override public void surfaceDestroyed(SurfaceHolder h){ pause(); }
 
     public void update(float delta) {
+        long now = System.nanoTime();
+        if (lastFrameNs != 0L) {
+            long dt = now - lastFrameNs;
+            if (dt > 0) fps = 1_000_000_000f / dt;
+        }
+        lastFrameNs = now;
+
         // Movimiento — más lento
-        float spd = 1.4f * delta;
+        float spd = 0.35f * delta;
         float angle = player.angle;
         float forwardX = (float)Math.cos(angle);
         float forwardY = (float)Math.sin(angle);
@@ -69,7 +78,7 @@ public class GameSurface extends SurfaceView
         // Rotación cámara
         float rot = joystick.getRotate();
         if (Math.abs(rot) > 0.008f) {
-            player.angle += rot * 0.045f * delta;
+            player.angle += rot * 0.055f * delta;
         }
     }
 
@@ -87,6 +96,10 @@ public class GameSurface extends SurfaceView
 
         raycaster.drawMinimap(canvas, player);
         joystick.draw(canvas, paint);
+
+        paint.setColor(Color.argb(180, 255, 255, 255));
+        paint.setTextSize(24f);
+        canvas.drawText("FPS: " + (int)fps, 16f, 28f, paint);
     }
 
     @Override
