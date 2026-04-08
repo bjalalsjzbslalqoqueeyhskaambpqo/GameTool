@@ -150,14 +150,21 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         float rx = (float)Math.cos(angle + Math.PI/2);
         float ry = (float)Math.sin(angle + Math.PI/2);
 
+        // Snapshot de input por frame para minimizar inconsistencias entre threads
         float jx = joystick.getMoveDX();
         float jy = joystick.getMoveDY();
-        if (Math.abs(jx) > 0.08f || Math.abs(jy) > 0.08f)
-            player.move((fx*(-jy)+rx*jx)*spd, (fy*(-jy)+ry*jx)*spd);
-
         float rot = joystick.getRotate();
-        if (Math.abs(rot) > 0.008f)
+
+        android.util.Log.d("INPUT", "dx=" + jx + " dy=" + jy);
+
+        if (Math.abs(jx) > 0.08f || Math.abs(jy) > 0.08f) {
+            player.move((fx * (-jy) + rx * jx) * spd,
+                        (fy * (-jy) + ry * jx) * spd);
+        }
+
+        if (Math.abs(rot) > 0.008f) {
             player.angle += rot * 0.045f * delta;
+        }
     }
 
     private void drawHUD(GL10 gl) {
