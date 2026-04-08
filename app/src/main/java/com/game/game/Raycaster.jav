@@ -116,12 +116,58 @@ public class Raycaster {
     }
 
     private float castRay(float px, float py, float angle) {
-        float cosA = (float)Math.cos(angle);
-        float sinA = (float)Math.sin(angle);
-        for (float d = 1; d < MAX_DIST; d += 1.5f) {
-            if (Map.isWallAt(px + cosA*d, py + sinA*d))
-                return d;
+        float dirX = (float)Math.cos(angle);
+        float dirY = (float)Math.sin(angle);
+
+        int tile = Map.TILE;
+        int mapX = (int)(px / tile);
+        int mapY = (int)(py / tile);
+
+        float invDirX = Math.abs(dirX) < 0.00001f ? 100000f : 1f / dirX;
+        float invDirY = Math.abs(dirY) < 0.00001f ? 100000f : 1f / dirY;
+
+        float deltaDistX = Math.abs(tile * invDirX);
+        float deltaDistY = Math.abs(tile * invDirY);
+
+        int stepX;
+        int stepY;
+        float sideDistX;
+        float sideDistY;
+
+        if (dirX < 0) {
+            stepX = -1;
+            sideDistX = (px - (mapX * tile)) * Math.abs(invDirX);
+        } else {
+            stepX = 1;
+            sideDistX = (((mapX + 1) * tile) - px) * Math.abs(invDirX);
         }
+
+        if (dirY < 0) {
+            stepY = -1;
+            sideDistY = (py - (mapY * tile)) * Math.abs(invDirY);
+        } else {
+            stepY = 1;
+            sideDistY = (((mapY + 1) * tile) - py) * Math.abs(invDirY);
+        }
+
+        float dist = MAX_DIST;
+        for (int i = 0; i < 256; i++) {
+            if (sideDistX < sideDistY) {
+                dist = sideDistX;
+                sideDistX += deltaDistX;
+                mapX += stepX;
+            } else {
+                dist = sideDistY;
+                sideDistY += deltaDistY;
+                mapY += stepY;
+            }
+
+            if (Map.isWall(mapX, mapY)) {
+                return Math.min(dist, MAX_DIST);
+            }
+            if (dist >= MAX_DIST) break;
+        }
+
         return MAX_DIST;
     }
 
