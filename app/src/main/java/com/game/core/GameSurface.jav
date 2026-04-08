@@ -11,6 +11,7 @@ public class GameSurface extends GLSurfaceView {
         super(context);
         setEGLContextClientVersion(2);
         renderer = new GameRenderer(context);
+        renderer.connectToServer(context);
         setRenderer(renderer);
         setRenderMode(RENDERMODE_CONTINUOUSLY);
         Assets.load(context);
