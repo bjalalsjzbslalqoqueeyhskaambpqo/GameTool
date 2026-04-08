@@ -45,18 +45,22 @@ public class Joystick {
             case MotionEvent.ACTION_MOVE:
                 for (int i = 0; i < e.getPointerCount(); i++) {
                     int id = e.getPointerId(i);
+
+                    // Izquierdo — joystick clásico con radio
                     if (id == leftId) {
                         float dx = e.getX(i) - leftTouchX;
                         float dy = e.getY(i) - leftTouchY;
                         float len = (float)Math.sqrt(dx*dx+dy*dy);
-                        float max = 80f;
+                        float max = 100f;
                         if (len > max) { dx=dx/len*max; dy=dy/len*max; }
                         leftDX = dx / max;
                         leftDY = dy / max;
                     }
+
+                    // Derecho — delta acumulativo sensible
                     if (id == rightId) {
-                        float dx = e.getX(i) - rightTouchX;
-                        rightDX = (e.getX(i) - rightTouchX) / 300f;
+                        float delta = e.getX(i) - rightTouchX;
+                        rightDX = delta / 80f;  // más sensible
                         rightTouchX = e.getX(i);
                     }
                 }

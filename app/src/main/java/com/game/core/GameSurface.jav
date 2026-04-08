@@ -48,33 +48,33 @@ public class GameSurface extends SurfaceView
     @Override public void surfaceDestroyed(SurfaceHolder h){ pause(); }
 
     public void update() {
-        float spd = 1.5f;
-
-        // IZQUIERDO — mover personaje en el mundo
-        // La cámara NO cambia, solo la posición X,Y
+        // Movimiento — más lento
+        float spd = 1.8f;
         float angle = player.angle;
-        float forwardX = (float) Math.cos(angle);
-        float forwardY = (float) Math.sin(angle);
-        float rightX   = (float) Math.cos(angle + Math.PI/2);
-        float rightY   = (float) Math.sin(angle + Math.PI/2);
+        float forwardX = (float)Math.cos(angle);
+        float forwardY = (float)Math.sin(angle);
+        float rightX   = (float)Math.cos(angle + Math.PI/2);
+        float rightY   = (float)Math.sin(angle + Math.PI/2);
 
-        float moveX = forwardX * (-joystick.getMoveDY())
-                    + rightX   * joystick.getMoveDX();
-        float moveY = forwardY * (-joystick.getMoveDY())
-                    + rightY   * joystick.getMoveDX();
+        float jDX = joystick.getMoveDX();
+        float jDY = joystick.getMoveDY();
 
-        player.move(moveX * spd, moveY * spd);
+        // Solo mover si hay input significativo
+        if (Math.abs(jDX) > 0.05f || Math.abs(jDY) > 0.05f) {
+            float moveX = (forwardX*(-jDY) + rightX*jDX) * spd;
+            float moveY = (forwardY*(-jDY) + rightY*jDX) * spd;
+            player.move(moveX, moveY);
+        }
 
-        // DERECHO — rotar cámara solamente, NO mueve posición
+        // Rotación cámara
         float rot = joystick.getRotate();
-        if (Math.abs(rot) > 0.02f) {
-            player.angle += rot * 0.02f;
+        if (Math.abs(rot) > 0.005f) {
+            player.angle += rot * 0.06f;
         }
     }
 
     public void draw(Canvas canvas) {
         raycaster.render(canvas, player);
-        joystick.draw(canvas, paint);
 
         // Viñeta oscura en bordes para más inmersión
         paint.setColor(Color.argb(120, 0, 0, 0));
@@ -84,6 +84,9 @@ public class GameSurface extends SurfaceView
         canvas.drawRect(0, H-v, W, H, paint);
         canvas.drawRect(0, 0, v, H, paint);
         canvas.drawRect(W-v, 0, W, H, paint);
+
+        raycaster.drawMinimap(canvas, player);
+        joystick.draw(canvas, paint);
     }
 
     @Override
