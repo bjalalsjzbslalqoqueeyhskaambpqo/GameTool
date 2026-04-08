@@ -35,8 +35,8 @@ public class GameSurface extends SurfaceView
         joystick.init(W, H);
 
         // Spawn en centro del mapa
-        float startX = Map.TILE * 1.5f;
-        float startY = Map.TILE * 1.5f;
+        float startX = Map.TILE * 11.5f;
+        float startY = Map.TILE * 11.5f;
         player = new Player(startX, startY);
         raycaster = new Raycaster(W, H);
 
@@ -49,7 +49,7 @@ public class GameSurface extends SurfaceView
 
     public void update(float delta) {
         // Movimiento — más lento
-        float spd = 2.5f * delta;
+        float spd = 1.4f * delta;
         float angle = player.angle;
         float forwardX = (float)Math.cos(angle);
         float forwardY = (float)Math.sin(angle);
@@ -60,7 +60,7 @@ public class GameSurface extends SurfaceView
         float jDY = joystick.getMoveDY();
 
         // Solo mover si hay input significativo
-        if (Math.abs(jDX) > 0.05f || Math.abs(jDY) > 0.05f) {
+        if (Math.abs(jDX) > 0.08f || Math.abs(jDY) > 0.08f) {
             float moveX = (forwardX*(-jDY) + rightX*jDX) * spd;
             float moveY = (forwardY*(-jDY) + rightY*jDX) * spd;
             player.move(moveX, moveY);
@@ -68,8 +68,8 @@ public class GameSurface extends SurfaceView
 
         // Rotación cámara
         float rot = joystick.getRotate();
-        if (Math.abs(rot) > 0.005f) {
-            player.angle += rot * 0.06f * delta;
+        if (Math.abs(rot) > 0.008f) {
+            player.angle += rot * 0.045f * delta;
         }
     }
 
