@@ -1,6 +1,9 @@
 package com.game.game;
 
+import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -24,13 +27,18 @@ public class Raycaster {
 
     private final int screenW, screenH;
     private Bitmap minimapBitmap;
+    private Bitmap wallTex;
+    private Bitmap floorTex;
+    private Bitmap ceilingTex;
+    private Paint floorPaint = new Paint();
+    private Paint ceilingPaint = new Paint();
 
     private static class Hit {
         float dist;
         boolean vertical;
     }
 
-    public Raycaster(int w, int h) {
+    public Raycaster(Context context, int w, int h) {
         screenW = w;
         screenH = h;
 
@@ -55,7 +63,28 @@ public class Raycaster {
             Shader.TileMode.CLAMP);
         vignettePaint.setShader(vignetteGradient);
 
+        loadTextures(context);
         buildMinimapBitmap();
+    }
+
+
+
+    private void loadTextures(Context context) {
+        try {
+            wallTex = BitmapFactory.decodeStream(context.getAssets().open("wall.png"));
+            floorTex = BitmapFactory.decodeStream(context.getAssets().open("floor.png"));
+            ceilingTex = BitmapFactory.decodeStream(context.getAssets().open("ceiling.png"));
+
+            if (floorTex != null) {
+                floorPaint.setShader(new BitmapShader(floorTex,
+                    Shader.TileMode.REPEAT, Shader.TileMode.REPEAT));
+            }
+            if (ceilingTex != null) {
+                ceilingPaint.setShader(new BitmapShader(ceilingTex,
+                    Shader.TileMode.REPEAT, Shader.TileMode.REPEAT));
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private void buildMinimapBitmap() {
@@ -84,22 +113,29 @@ public class Raycaster {
         float breathe = (float)Math.sin(time * 2f) * 3f;
         float horizon = screenH / 2f + breathe;
 
-        // Techo (gradiente inverso)
-        for (int y = 0; y < horizon; y += 4) {
-            float t = y / Math.max(1f, horizon);
-            int c = (int)(18 - t * 10);
-            paint.setColor(Color.rgb(c, c, c + 3));
-            canvas.drawRect(0, y, screenW, y + 4, paint);
+        // Techo y suelo con texturas si existen
+        if (ceilingTex != null) {
+            canvas.drawRect(0, 0, screenW, horizon, ceilingPaint);
+        } else {
+            for (int y = 0; y < horizon; y += 4) {
+                float t = y / Math.max(1f, horizon);
+                int c = (int)(18 - t * 10);
+                paint.setColor(Color.rgb(c, c, c + 3));
+                canvas.drawRect(0, y, screenW, y + 4, paint);
+            }
         }
 
-        // Suelo (más oscuro hacia el centro)
-        for (int y = (int)horizon; y < screenH; y += 4) {
-            float t = (y - horizon) / Math.max(1f, (screenH - horizon));
-            int c = (int)(25 + t * 8);
-            int centerDark = (int)(Math.abs((y - horizon) / (screenH - horizon) - 0.5f) * 25f);
-            c = Math.max(8, c - centerDark);
-            paint.setColor(Color.rgb(c, c - 2, c - 5));
-            canvas.drawRect(0, y, screenW, y + 4, paint);
+        if (floorTex != null) {
+            canvas.drawRect(0, horizon, screenW, screenH, floorPaint);
+        } else {
+            for (int y = (int)horizon; y < screenH; y += 4) {
+                float t = (y - horizon) / Math.max(1f, (screenH - horizon));
+                int c = (int)(25 + t * 8);
+                int centerDark = (int)(Math.abs((y - horizon) / (screenH - horizon) - 0.5f) * 25f);
+                c = Math.max(8, c - centerDark);
+                paint.setColor(Color.rgb(c, c - 2, c - 5));
+                canvas.drawRect(0, y, screenW, y + 4, paint);
+            }
         }
 
         float angleStep = FOV / NUM_RAYS;
@@ -120,6 +156,19 @@ public class Raycaster {
             int baseR = hit.vertical ? 75 : 55;
             int baseG = hit.vertical ? 75 : 55;
             int baseB = hit.vertical ? 80 : 60;
+
+            if (wallTex != null) {
+                int texX = (int)((i / (float)NUM_RAYS) * (wallTex.getWidth() - 1));
+                int texC = wallTex.getPixel(Math.max(0, texX), wallTex.getHeight() / 2);
+                baseR = Color.red(texC);
+                baseG = Color.green(texC);
+                baseB = Color.blue(texC);
+                if (!hit.vertical) {
+                    baseR = (int)(baseR * 0.75f);
+                    baseG = (int)(baseG * 0.75f);
+                    baseB = (int)(baseB * 0.75f);
+                }
+            }
 
             int r = (int)(baseR * light);
             int g = (int)(baseG * light);

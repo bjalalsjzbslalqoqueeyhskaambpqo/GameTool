@@ -47,7 +47,7 @@ public class GameSurface extends SurfaceView
         float startX = Map.getSpawnX();
         float startY = Map.getSpawnY();
         player = new Player(startX, startY);
-        raycaster = new Raycaster(W, H);
+        raycaster = new Raycaster(getContext(), W, H);
         startTimeNs = System.nanoTime();
         sanity = 100f;
 
