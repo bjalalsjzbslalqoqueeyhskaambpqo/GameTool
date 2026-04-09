@@ -367,7 +367,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
     public boolean canAttack(){
         return (gameMode==MODE_KILLER&&amKiller)
-            ||(gameMode==MODE_INFECTION&&amInfected)
+            ||(gameMode==1)
             ||(gameMode==MODE_FFA)
             ||(gameMode==MODE_BLACKOUT&&amKiller)
             ||(gameMode==MODE_DETECTIVE&&amKiller)
@@ -392,7 +392,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             player.angle += rightDX * camSensitivity * delta;
         rightDX=0; rightDY=0;
 
-        if(gameMode==MODE_FFA&&myHp>0&&myHp<100&&frameCount%300==0)
+        if((gameMode==1||gameMode==MODE_FFA)
+                &&myHp>0&&myHp<100&&frameCount%300==0)
             myHp=Math.min(100,myHp+1);
 
         Assets.updateSteps(Math.abs(jx)>0.05f||Math.abs(jy)>0.05f);
@@ -1098,10 +1099,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 color=endKillerWon?Color.rgb(220,40,40):Color.rgb(50,220,80);
                 break;
             case MODE_INFECTION:
-                titulo=endKillerWon?"INFECCIÓN TOTAL":"LOS SANOS GANAN";
-                iWon=endKillerWon==amInfected;
-                sub=amInfected?"Infectaste a todos":"Resististe";
-                color=endKillerWon?Color.rgb(120,200,50):Color.rgb(80,180,180);
+                titulo="FREE FOR ALL";
+                iWon=myHp>0;
+                sub=iWon?"¡Ganaste el caos!":"Fuiste eliminado";
+                color=iWon?Color.rgb(220,180,50):Color.rgb(150,150,150);
                 break;
             case MODE_DETECTIVE:
                 titulo=endKillerWon?"EL ASESINO ESCAPÓ":"DETECTIVE GANA";
@@ -1284,8 +1285,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 else{roleText="SUPERVIVIENTE";roleColor=Color.rgb(80,180,80);}
                 break;
             case MODE_INFECTION:
-                if(amInfected){roleText="INFECTADO";roleColor=Color.rgb(120,200,50);}
-                else{roleText="SANO";roleColor=Color.rgb(80,200,80);}
+                roleText="FREE FOR ALL";roleColor=Color.rgb(200,150,50);
                 break;
             case MODE_FFA:case MODE_SHRINK:
                 roleText="FREE FOR ALL";roleColor=Color.rgb(200,150,50);break;
