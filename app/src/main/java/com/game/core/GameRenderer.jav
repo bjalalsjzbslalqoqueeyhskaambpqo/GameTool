@@ -65,6 +65,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private FloatBuffer quadVerts;
     private final int[] pixelBuf = new int[RW*RH];
     private Bitmap frameBmp;
+    private Bitmap frameBmpHD;
+    private int screenW = 1080;
+    private int screenH = 1920;
 
     private long  prevTime;
     private float delta = 1f;
@@ -84,6 +87,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private volatile String  currentRoomId = "";
     private volatile boolean allReady      = false;
     private volatile int     readyCount    = 0;
+    private volatile boolean iAmReady      = false;
 
     private final ConcurrentHashMap<Integer, RemoteState>
         remoteStates = new ConcurrentHashMap<>();
@@ -158,6 +162,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 detectorDist=dist;
                 detectorTime=System.currentTimeMillis();
             }
+            public void onReadyUpdate(int ready, int total){
+                readyCount = ready;
+                minPlayers = total;
+            }
             public void onDisconnected(){
                 if(state==GameState.PLAYING||state==GameState.DEAD){
                     state=GameState.CONNECTING;
@@ -179,6 +187,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         myHp=100; blackoutActive=false; detectorDist=-1;
         statusMsg=playerCount+"/"+minPlayers+" jugadores";
         remoteStates.clear();
+        iAmReady = false;
+        readyCount = 0;
         Map.generate(System.currentTimeMillis());
         player=new Player(Map.getSpawnX(),Map.getSpawnY());
     }
@@ -189,6 +199,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         player=new Player(Map.getSpawnX(),Map.getSpawnY());
         raycaster=new Raycaster(RW,RH);
         frameBmp=Bitmap.createBitmap(RW,RH,Bitmap.Config.ARGB_8888);
+        frameBmpHD=Bitmap.createBitmap(screenW,screenH,Bitmap.Config.ARGB_8888);
         program=buildProgram(VERT,FRAG);
         posHandle=GLES20.glGetAttribLocation(program,"aPos");
         uvHandle =GLES20.glGetAttribLocation(program,"aUV");
@@ -211,6 +222,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
     @Override public void onSurfaceChanged(GL10 gl,int w,int h){
         GLES20.glViewport(0,0,w,h);
+        screenW = w;
+        screenH = h;
+        frameBmpHD = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
     }
 
     @Override
@@ -326,51 +340,48 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void drawNameScreen(){
-        Canvas c=new Canvas(frameBmp);
+        Canvas c=new Canvas(frameBmpHD);
+        float SW=screenW, SH=screenH;
         c.drawColor(Color.BLACK);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
 
         p.setColor(Color.rgb(180,30,30));
-        p.setTextSize(RH*0.13f);
+        p.setTextSize(SH*0.08f);
         p.setFakeBoldText(true);
-        c.drawText("DUNGEON",RW/2f,RH*0.20f,p);
+        c.drawText("DUNGEON",SW/2f,SH*0.08f,p);
         p.setFakeBoldText(false);
 
-        p.setColor(Color.rgb(80,20,20));
-        p.setStrokeWidth(1.5f);
-        c.drawLine(RW*0.1f,RH*0.25f,RW*0.9f,RH*0.25f,p);
-
         p.setColor(Color.rgb(140,140,140));
-        p.setTextSize(RH*0.050f);
-        c.drawText("Ingresá tu nombre",RW/2f,RH*0.38f,p);
+        p.setTextSize(SH*0.035f);
+        c.drawText("Tu nombre:",SW/2f,SH*0.18f,p);
 
         // Campo de nombre
         p.setColor(Color.argb(180,40,40,40));
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(RW*0.1f,RH*0.44f,RW*0.9f,RH*0.58f,p);
+        c.drawRect(SW*0.1f,SH*0.22f,SW*0.9f,SH*0.30f,p);
         p.setColor(Color.rgb(100,80,80));
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(1.5f);
-        c.drawRect(RW*0.1f,RH*0.44f,RW*0.9f,RH*0.58f,p);
+        c.drawRect(SW*0.1f,SH*0.22f,SW*0.9f,SH*0.30f,p);
         p.setStyle(Paint.Style.FILL);
 
         String display=playerName.isEmpty()?"Toca para escribir...":
             playerName+"_";
         p.setColor(playerName.isEmpty()
             ?Color.rgb(80,80,80):Color.WHITE);
-        p.setTextSize(RH*0.055f);
-        c.drawText(display,RW/2f,RH*0.53f,p);
+        p.setTextSize(SH*0.035f);
+        c.drawText(display,SW/2f,SH*0.275f,p);
 
-        float kbTop = RH * 0.52f;
-        float kbH   = RH * 0.48f;
+        float kbTop = SH * 0.34f;
+        float kbH   = SH * 0.56f;
         float keyH  = kbH / 4.2f;
 
         p.setColor(Color.argb(220, 20, 20, 20));
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(0, kbTop, RW, RH, p);
+        c.drawRect(0, kbTop, SW, SH, p);
 
-        float keyW1 = RW / 10f;
+        float keyW1 = SW / 10f;
         for(int i=0; i<ROW1.length; i++){
             float kx = i * keyW1;
             float ky = kbTop + keyH*0.05f;
@@ -383,12 +394,12 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             c.drawRect(kx+1, ky, kx+keyW1-1, ky+keyH*0.85f, p);
             p.setStyle(Paint.Style.FILL);
             p.setColor(Color.WHITE);
-            p.setTextSize(RH*0.045f);
+            p.setTextSize(SH*0.028f);
             c.drawText(ROW1[i], kx+keyW1/2f, ky+keyH*0.58f, p);
         }
 
-        float keyW2 = RW / 10f;
-        float offX2 = (RW - ROW2.length * keyW2) / 2f;
+        float keyW2 = SW / 10f;
+        float offX2 = (SW - ROW2.length * keyW2) / 2f;
         for(int i=0; i<ROW2.length; i++){
             float kx = offX2 + i * keyW2;
             float ky = kbTop + keyH*1.1f;
@@ -401,12 +412,12 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             c.drawRect(kx+1, ky, kx+keyW2-1, ky+keyH*0.85f, p);
             p.setStyle(Paint.Style.FILL);
             p.setColor(Color.WHITE);
-            p.setTextSize(RH*0.045f);
+            p.setTextSize(SH*0.028f);
             c.drawText(ROW2[i], kx+keyW2/2f, ky+keyH*0.58f, p);
         }
 
-        float keyW3 = RW / 9f;
-        float offX3 = (RW - ROW3.length * keyW3) / 2f;
+        float keyW3 = SW / 9f;
+        float offX3 = (SW - ROW3.length * keyW3) / 2f;
         for(int i=0; i<ROW3.length; i++){
             float kx = offX3 + i * keyW3;
             float ky = kbTop + keyH*2.2f;
@@ -420,27 +431,27 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             c.drawRect(kx+1, ky, kx+keyW3-1, ky+keyH*0.85f, p);
             p.setStyle(Paint.Style.FILL);
             p.setColor(Color.WHITE);
-            p.setTextSize(RH*0.045f);
+            p.setTextSize(SH*0.028f);
             c.drawText(ROW3[i], kx+keyW3/2f, ky+keyH*0.58f, p);
         }
 
         if(!playerName.isEmpty()){
-            float btnY = kbTop + keyH*3.3f;
+            float btnY = SH*0.92f;
             p.setColor(Color.rgb(30,110,40));
             p.setStyle(Paint.Style.FILL);
-            c.drawRect(RW*0.2f, btnY, RW*0.8f, btnY+keyH*0.85f, p);
+            c.drawRect(SW*0.2f, btnY, SW*0.8f, btnY+keyH*0.85f, p);
             p.setColor(Color.rgb(80,180,90));
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(1.2f);
-            c.drawRect(RW*0.2f, btnY, RW*0.8f, btnY+keyH*0.85f, p);
+            c.drawRect(SW*0.2f, btnY, SW*0.8f, btnY+keyH*0.85f, p);
             p.setStyle(Paint.Style.FILL);
             p.setColor(Color.WHITE);
-            p.setTextSize(RH*0.050f);
+            p.setTextSize(SH*0.032f);
             p.setFakeBoldText(true);
-            c.drawText(ROW4_OK, RW/2f, btnY+keyH*0.6f, p);
+            c.drawText(ROW4_OK, SW/2f, btnY+keyH*0.6f, p);
             p.setFakeBoldText(false);
         }
-        flushFrame();
+        flushFrameHD();
     }
 
     private static final String[] MODE_NAMES={
@@ -465,8 +476,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private static final String ROW4_OK = "LISTO";
 
     private void drawMenuScreen(){
-        Canvas c=new Canvas(frameBmp);
+        Canvas c=new Canvas(frameBmpHD);
+        float SW=screenW, SH=screenH;
         c.drawColor(Color.BLACK);
+        c.scale(SW/(float)RW, SH/(float)RH);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
 
@@ -543,12 +556,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             p.setTextSize(RH*0.030f);
             c.drawText(MODE_DESC[i],bx+bw/2,by+bh*0.78f,p);
         }
-        flushFrame();
+        flushFrameHD();
     }
 
     private void drawCreateScreen(){
-        Canvas c=new Canvas(frameBmp);
+        Canvas c=new Canvas(frameBmpHD);
+        float SW=screenW, SH=screenH;
         c.drawColor(Color.BLACK);
+        c.scale(SW/(float)RW, SH/(float)RH);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
 
@@ -598,12 +613,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         c.drawText("CREAR",RW/2f,RH*0.97f,p);
         p.setFakeBoldText(false);
 
-        flushFrame();
+        flushFrameHD();
     }
 
     private void drawJoinScreen(){
-        Canvas c=new Canvas(frameBmp);
+        Canvas c=new Canvas(frameBmpHD);
+        float SW=screenW, SH=screenH;
         c.drawColor(Color.BLACK);
+        c.scale(SW/(float)RW, SH/(float)RH);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
 
@@ -658,12 +675,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             c.drawText(keys[i],kx+kw/2,ky+kh*0.70f,p);
             p.setFakeBoldText(false);
         }
-        flushFrame();
+        flushFrameHD();
     }
 
     private void drawWaitingScreen(){
-        Canvas c=new Canvas(frameBmp);
+        Canvas c=new Canvas(frameBmpHD);
+        float SW=screenW, SH=screenH;
         c.drawColor(Color.BLACK);
+        c.scale(SW/(float)RW, SH/(float)RH);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
 
@@ -704,14 +723,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             p.setFakeBoldText(false);
 
             float cy=RH*0.44f,cr=RH*0.038f;
-            float sp=RW/(minPlayers+1f);
-            for(int i=0;i<minPlayers;i++){
+            float sp=RW/(Math.max(1,minPlayers)+1f);
+            for(int i=0;i<Math.max(1,minPlayers);i++){
                 float cx2=sp*(i+1);
-                p.setColor(i<playerCount
-                    ?Color.rgb(50,180,80):Color.rgb(40,40,40));
+                p.setColor(i<readyCount
+                    ?Color.rgb(50,180,80):Color.rgb(55,55,55));
                 p.setStyle(Paint.Style.FILL);
                 c.drawCircle(cx2,cy,cr,p);
-                if(i>=playerCount){
+                if(i>=readyCount){
                     p.setColor(Color.rgb(70,70,70));
                     p.setStyle(Paint.Style.STROKE);
                     p.setStrokeWidth(1.5f);
@@ -722,33 +741,36 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             p.setColor(Color.rgb(80,180,80));
             p.setTextSize(RH*0.065f);
             p.setFakeBoldText(true);
-            c.drawText(playerCount+"/"+minPlayers,RW/2f,RH*0.57f,p);
+            c.drawText(readyCount+"/"+Math.max(1,minPlayers)+" listos",RW/2f,RH*0.57f,p);
             p.setFakeBoldText(false);
             p.setColor(Color.rgb(60,60,60));
             p.setTextSize(RH*0.036f);
-            c.drawText("jugadores conectados",RW/2f,RH*0.64f,p);
-            c.drawText("La partida inicia automáticamente",
-                RW/2f,RH*0.71f,p);
-
-            // Botón volver al menú
-            p.setColor(Color.argb(100,80,80,80));
-            p.setStyle(Paint.Style.FILL);
-            c.drawRect(RW*0.3f,RH*0.82f,RW*0.7f,RH*0.92f,p);
-            p.setColor(Color.argb(150,150,150,150));
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1f);
-            c.drawRect(RW*0.3f,RH*0.82f,RW*0.7f,RH*0.92f,p);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.argb(180,180,180,180));
-            p.setTextSize(RH*0.040f);
-            c.drawText("← Volver",RW/2f,RH*0.89f,p);
+            c.drawText("jugadores listos",RW/2f,RH*0.64f,p);
+            if(!iAmReady){
+                p.setColor(Color.rgb(30,120,30));
+                p.setStyle(Paint.Style.FILL);
+                c.drawRect(RW*0.1f,RH*0.72f,RW*0.9f,RH*0.84f,p);
+                p.setColor(Color.WHITE);
+                p.setTextSize(RH*0.06f);
+                p.setFakeBoldText(true);
+                c.drawText("¡LISTO!",RW/2f,RH*0.80f,p);
+                p.setFakeBoldText(false);
+            } else {
+                p.setColor(Color.rgb(130,130,130));
+                p.setTextSize(RH*0.040f);
+                int dots=(int)(frameCount/15)%4;
+                c.drawText("Esperando jugadores..." + ".".repeat(dots),
+                    RW/2f,RH*0.78f,p);
+            }
         }
-        flushFrame();
+        flushFrameHD();
     }
 
     private void drawEndScreen(){
-        Canvas c=new Canvas(frameBmp);
+        Canvas c=new Canvas(frameBmpHD);
+        float SW=screenW, SH=screenH;
         c.drawColor(Color.BLACK);
+        c.scale(SW/(float)RW, SH/(float)RH);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
 
@@ -800,7 +822,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setColor(Color.rgb(60,60,60));
         p.setTextSize(RH*0.036f);
         c.drawText("Volviendo a la sala...",RW/2f,RH*0.75f,p);
-        flushFrame();
+        flushFrameHD();
     }
 
     private void drawHUD(){
@@ -923,33 +945,33 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     public void handleNameKeyboard(
             float screenX, float screenY,
             int screenW, int screenH) {
-        float rx = screenX * (RW / (float)screenW);
-        float ry = screenY * (RH / (float)screenH);
+        float rx = screenX;
+        float ry = screenY;
 
-        float kbTop = RH * 0.52f;
-        float kbH   = RH * 0.48f;
+        float kbTop = screenH * 0.34f;
+        float kbH   = screenH * 0.56f;
         float keyH  = kbH / 4.2f;
 
         if (ry < kbTop) return;
 
         if (ry >= kbTop && ry < kbTop + keyH) {
-            int col = (int)(rx / (RW/10f));
+            int col = (int)(rx / (screenW/10f));
             if (col >= 0 && col < ROW1.length && playerName.length() < 10)
                 playerName += ROW1[col];
             return;
         }
 
         if (ry >= kbTop + keyH*1.1f && ry < kbTop + keyH*1.95f) {
-            float offX2 = (RW - 9*(RW/10f)) / 2f;
-            int col2 = (int)((rx - offX2) / (RW/10f));
+            float offX2 = (screenW - 9*(screenW/10f)) / 2f;
+            int col2 = (int)((rx - offX2) / (screenW/10f));
             if (col2 >= 0 && col2 < ROW2.length && playerName.length() < 10)
                 playerName += ROW2[col2];
             return;
         }
 
         if (ry >= kbTop + keyH*2.2f && ry < kbTop + keyH*3.05f) {
-            float offX3 = (RW - 8*(RW/9f)) / 2f;
-            int col3 = (int)((rx - offX3) / (RW/9f));
+            float offX3 = (screenW - 8*(screenW/9f)) / 2f;
+            int col3 = (int)((rx - offX3) / (screenW/9f));
             if (col3 >= 0 && col3 < ROW3.length) {
                 if ("⌫".equals(ROW3[col3])) {
                     if (!playerName.isEmpty())
@@ -961,31 +983,31 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             return;
         }
 
-        float btnY = kbTop + keyH*3.3f;
+        float btnY = screenH * 0.92f;
         if (ry > btnY && !playerName.isEmpty()) {
             state = GameState.MENU;
         }
     }
 
     public void handleTouch(float ex,float ey,int sw,int sh){
-        float rx2=ex*(RW/(float)sw);
-        float ry2=ey*(RH/(float)sh);
+        float rx2=ex;
+        float ry2=ey;
 
         switch(state){
             case NAME_INPUT:
                 handleNameKeyboard(ex, ey, sw, sh);
                 break;
             case MENU:
-                if(ry2>RH*0.21f&&ry2<RH*0.33f){
+                if(ry2>sh*0.21f&&ry2<sh*0.33f){
                     state=GameState.CREATING; selectedMode=0;
-                } else if(ry2>RH*0.36f&&ry2<RH*0.48f){
+                } else if(ry2>sh*0.36f&&ry2<sh*0.48f){
                     state=GameState.JOINING; roomCodeInput="";
                 } else {
                     for(int i=0;i<6;i++){
                         int col=i%2,row=i/2;
-                        float bx=RW*(col==0?0.05f:0.52f);
-                        float by=RH*(0.60f+row*0.13f);
-                        float bw=RW*0.43f,bh=RH*0.11f;
+                        float bx=sw*(col==0?0.05f:0.52f);
+                        float by=sh*(0.60f+row*0.13f);
+                        float bw=sw*0.43f,bh=sh*0.11f;
                         if(rx2>=bx&&rx2<=bx+bw&&ry2>=by&&ry2<=by+bh){
                             String[] quickRooms={"0000","0001","0002",
                                 "0003","0004","0005"};
@@ -997,12 +1019,12 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 break;
             case CREATING:
                 for(int i=0;i<6;i++){
-                    float by=RH*(0.25f+i*0.11f);
-                    if(ry2>by&&ry2<by+RH*0.09f){
+                    float by=sh*(0.25f+i*0.11f);
+                    if(ry2>by&&ry2<by+sh*0.09f){
                         selectedMode=i; return;
                     }
                 }
-                if(ry2>RH*0.92f){
+                if(ry2>sh*0.92f){
                     String[] rooms={"0000","0001","0002",
                         "0003","0004","0005"};
                     connectToRoom(rooms[selectedMode]);
@@ -1012,9 +1034,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 String[] keys2={"1","2","3","4","5","6","7","8","9","⌫","0","✓"};
                 for(int i=0;i<12;i++){
                     int col=i%3,row=i/3;
-                    float kx=RW*(0.05f+col*0.32f);
-                    float ky=RH*(0.56f+row*0.11f);
-                    float kw=RW*0.28f,kh=RH*0.09f;
+                    float kx=sw*(0.05f+col*0.32f);
+                    float ky=sh*(0.56f+row*0.11f);
+                    float kw=sw*0.28f,kh=sh*0.09f;
                     if(rx2>=kx&&rx2<=kx+kw&&ry2>=ky&&ry2<=ky+kh){
                         if(i==9){
                             if(!roomCodeInput.isEmpty())
@@ -1032,11 +1054,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 }
                 break;
             case WAITING:
-                if(ry2>RH*0.82f&&ry2<RH*0.92f){
-                    if(netClient!=null){
-                        netClient.disconnect(); netClient=null;}
-                    remoteStates.clear();
-                    state=GameState.MENU;
+                if(!iAmReady && ry2 > sh*0.72f && ry2 < sh*0.84f){
+                    iAmReady = true;
+                    if(netClient!=null) netClient.sendReady();
                 }
                 break;
             default: break;
@@ -1059,6 +1079,26 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D,texId);
         GLES20.glUniform1i(texHandle,0);
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP,0,4);
+    }
+
+    private void flushFrameHD(){
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texId);
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0,
+            frameBmpHD, 0);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        GLES20.glUseProgram(program);
+        quadVerts.position(0);
+        GLES20.glVertexAttribPointer(posHandle,2,
+            GLES20.GL_FLOAT,false,16,quadVerts);
+        GLES20.glEnableVertexAttribArray(posHandle);
+        quadVerts.position(2);
+        GLES20.glVertexAttribPointer(uvHandle,2,
+            GLES20.GL_FLOAT,false,16,quadVerts);
+        GLES20.glEnableVertexAttribArray(uvHandle);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texId);
+        GLES20.glUniform1i(texHandle, 0);
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP,0,4);
     }
 

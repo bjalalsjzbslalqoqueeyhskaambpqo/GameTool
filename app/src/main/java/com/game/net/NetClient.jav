@@ -38,6 +38,7 @@ public class NetClient {
         void onGameEnd(boolean killerWon);
         void onBlackout(boolean active);
         void onDetectorPing(float dist);
+        void onReadyUpdate(int ready, int total);
         void onDisconnected();
     }
 
@@ -141,6 +142,11 @@ public class NetClient {
                     float dist = msg.get("dist").getAsFloat();
                     listener.onDetectorPing(dist);
                     break;
+                case "ready_update":
+                    int ready = msg.get("ready").getAsInt();
+                    int total = msg.get("total").getAsInt();
+                    listener.onReadyUpdate(ready, total);
+                    break;
                 case "state":
                     if (msg.has("timer"))
                         lastTimer = msg.get("timer").getAsInt();
@@ -183,6 +189,13 @@ public class NetClient {
         if (ws==null||!ws.isOpen()||spectator) return;
         JsonObject o = new JsonObject();
         o.addProperty("type", "attack");
+        ws.send(gson.toJson(o));
+    }
+
+    public void sendReady(){
+        if(!isOpen()) return;
+        JsonObject o = new JsonObject();
+        o.addProperty("type","ready");
         ws.send(gson.toJson(o));
     }
 

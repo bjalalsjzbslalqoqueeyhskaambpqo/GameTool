@@ -25,27 +25,13 @@ public class GameSurface extends GLSurfaceView {
 
         if(action==MotionEvent.ACTION_DOWN
                 ||action==MotionEvent.ACTION_POINTER_DOWN){
-            GameRenderer.GameState prevState = renderer.state;
-            if(prevState==GameRenderer.GameState.NAME_INPUT){
-                float rx=ex*(320f/getWidth());
-                float ry=ey*(200f/getHeight());
-                if(ry>200f*0.44f&&ry<200f*0.58f){
-                    if(getContext() instanceof GameActivity)
-                        ((GameActivity)getContext()).showKeyboard();
-                } else if(!renderer.playerName.isEmpty()
-                        && ry>200f*0.68f&&ry<200f*0.82f){
-                    if(getContext() instanceof GameActivity)
-                        ((GameActivity)getContext()).hideKeyboard();
-                }
-            }
-
             renderer.handleTouch(ex,ey,getWidth(),getHeight());
 
             if(renderer.state==GameRenderer.GameState.PLAYING){
                 if(renderer.canAttack()){
-                    float atkX=getWidth()*0.72f;
-                    float atkY=getHeight()*0.62f;
-                    if(ex>=atkX&&ey>=atkY){
+                    float rx = ex * (320f / getWidth());
+                    float ry = ey * (200f / getHeight());
+                    if(rx>=320f*0.72f&&ry>=200f*0.62f){
                         renderer.attackPressed=true;
                         return true;
                     }
