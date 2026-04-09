@@ -33,18 +33,61 @@ jobs:
           fetch_png "$BASE/ceiling.png" app/src/main/res/drawable-nodpi/ceiling.png
           python - <<'PY'
           from pathlib import Path
-          import base64
+          import struct
+          import zlib
           png_sig = b"\x89PNG\r\n\x1a\n"
           paths = [
               Path("app/src/main/res/drawable-nodpi/wall.png"),
               Path("app/src/main/res/drawable-nodpi/floor.png"),
               Path("app/src/main/res/drawable-nodpi/ceiling.png"),
           ]
-          fallback_png = base64.b64decode(
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2N6KkAAAAASUVORK5CYII="
-          )
+          def chunk(tag: bytes, data: bytes) -> bytes:
+              return (
+                  struct.pack(">I", len(data))
+                  + tag
+                  + data
+                  + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+              )
+          def make_png_rgba(w: int, h: int, rgba=(96, 32, 32, 255)) -> bytes:
+              raw = b"".join(
+                  b"\x00" + bytes(rgba) * w
+                  for _ in range(h)
+              )
+              ihdr = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
+              idat = zlib.compress(raw, 9)
+              return png_sig + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
+          def is_valid_png(data: bytes) -> bool:
+              if len(data) < 67 or data[:8] != png_sig:
+                  return False
+              i = 8
+              saw_ihdr = False
+              saw_iend = False
+              try:
+                  while i + 12 <= len(data):
+                      ln = struct.unpack(">I", data[i:i+4])[0]
+                      tag = data[i+4:i+8]
+                      start = i + 8
+                      end = start + ln
+                      crc_off = end
+                      if crc_off + 4 > len(data):
+                          return False
+                      chunk_data = data[start:end]
+                      crc = struct.unpack(">I", data[crc_off:crc_off+4])[0]
+                      calc = zlib.crc32(tag + chunk_data) & 0xFFFFFFFF
+                      if crc != calc:
+                          return False
+                      if tag == b"IHDR":
+                          saw_ihdr = True
+                      if tag == b"IEND":
+                          saw_iend = True
+                          return saw_ihdr
+                      i = crc_off + 4
+              except Exception:
+                  return False
+              return False
+          fallback_png = make_png_rgba(4, 4)
           for p in paths:
-              valid = p.exists() and p.stat().st_size >= 64 and p.read_bytes()[:8] == png_sig
+              valid = p.exists() and is_valid_png(p.read_bytes())
               if not valid:
                   p.write_bytes(fallback_png)
                   print(f"[warn] replaced invalid texture with fallback PNG: {p}")
