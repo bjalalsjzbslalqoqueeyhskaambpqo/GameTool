@@ -9,6 +9,7 @@ import android.graphics.Paint;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
+import com.google.gson.*;
 import com.game.game.Map;
 import com.game.game.Player;
 import com.game.game.Raycaster;
@@ -44,6 +45,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     public volatile boolean amKiller   = false;
     public volatile boolean amInfected = false;
     public volatile boolean amDetective= false;
+    public volatile int     myTeam     = -1;
     public volatile boolean attackPressed = false;
     public volatile String  playerName  = "";
     public volatile String  roomCodeInput = "";
@@ -75,6 +77,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private long  frameCount = 0;
     private long  lastReconnect = 0;
 
+    private volatile int     myId         = -1;
     private volatile int     myHp         = 100;
     private volatile int     gameTimer    = 0;
     private volatile int     playerCount  = 0;
@@ -85,12 +88,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private volatile boolean blackoutActive = false;
     private volatile float   detectorDist  = -1f;
     private volatile long    detectorTime  = 0;
+    private volatile boolean amHost        = false;
+    private volatile int     totalInRoom   = 1;
     private volatile String  currentRoomId = "";
     private volatile boolean allReady      = false;
     private android.content.SharedPreferences prefs;
     private volatile float camSensitivity = 0.07f;
     private volatile int   myVotedMode    = 0;
-    private volatile int[] modeVotes      = new int[6];
+    private volatile int[] modeVotes      = new int[3];
     private volatile int     readyCount    = 0;
     private volatile boolean iAmReady      = false;
     private volatile int pingMs = 0;
@@ -140,42 +145,57 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             ?"Player"+(int)(Math.random()*900+100):playerName,
             new NetClient.Listener(){
             public void onConnected(){ statusMsg="Conectado"; }
-            public void onJoined(int id,long seed,boolean spec,int mode){
-                Map.generate(seed);
-                player=new Player(Map.getSpawnX(),Map.getSpawnY());
-                gameMode=mode;
-                roomBusy=false;
-                state=spec?GameState.SPECTATING:GameState.WAITING;
-                statusMsg=spec?"Espectador":"Sala: "+currentRoomId;
+            public void onJoined(int id, boolean host, String room){
+                myId = id; amHost = host;
+                totalInRoom = Math.max(1, playerCount);
+                currentRoomId = room;
+                state = GameState.WAITING;
+                statusMsg = host ? "Esperando jugadores..." :
+                    "Conectado a sala "+room;
             }
-            public void onRoomInfo(int cnt,int min,boolean started){
-                playerCount=cnt; minPlayers=min;
-                if(!started&&state==GameState.END){
-                    resetToWaiting();
-                } else if(!started&&state!=GameState.PLAYING){
-                    state=GameState.WAITING;
-                    statusMsg=cnt+"/"+min+" jugadores";
-                }
+            public void onPlayerJoined(int id,String name,int total){
+                totalInRoom = total;
+                playerCount = total;
             }
-            public void onGameStart(boolean killer,boolean inf,
-                    boolean det,int mode,int dur){
-                gameMode=mode; amKiller=killer;
-                amInfected=inf; amDetective=det;
+            public void onPlayerLeft(int id,String name,int total){
+                totalInRoom = total;
+                playerCount = total;
+                remoteStates.remove(id);
+            }
+            public void onYouAreHost(){
+                amHost = true;
+                statusMsg = "Eres el host ahora";
+            }
+            public void onGameStart(int mode, int team,
+                    boolean killer, float sx, float sy,
+                    int dur, long seed){
+                if(seed!=0) Map.generate(seed);
+                gameMode=mode; myTeam=team; amKiller=killer;
+                amInfected=false;
+                amDetective=false;
                 roomBusy=false;
                 myHp=100; state=GameState.PLAYING;
-                if(netClient!=null){
-                    player=new Player(
-                        netClient.spawnX,
-                        netClient.spawnY);
-                }
+                player=new Player(sx,sy);
                 statusMsg="";
             }
-            public void onHit(int hp){ myHp=hp; }
-            public void onPlayerDied(int id, String killerName){
-                if(netClient!=null&&id==netClient.myId){
-                    myHp=0; state=GameState.DEAD;
-                    lastKillerName=killerName;
+            public void onState(List<NetClient.RemotePlayer> list,
+                    int timer){
+                gameTimer=timer;
+                for(NetClient.RemotePlayer rp:list){
+                    RemoteState rs=remoteStates.computeIfAbsent(
+                        rp.id,k->new RemoteState());
+                    rs.update(rp.x,rp.y,rp.angle);
                 }
+            }
+            public void onHit(int hp, String killer){
+                myHp=hp;
+                if(myHp<=0){
+                    myHp=0; state=GameState.DEAD;
+                    lastKillerName=killer;
+                }
+            }
+            public void onPlayerDied(int id, String killer){
+                remoteStates.remove(id);
             }
             public void onGameEnd(boolean kw,
                     List<NetClient.EndResult> results){
@@ -183,39 +203,20 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 endResults=results;
                 state=GameState.END;
             }
-            public void onBlackout(boolean on){ blackoutActive=on; }
-            public void onDetectorPing(float dist){
-                detectorDist=dist;
-                detectorTime=System.currentTimeMillis();
-            }
-            public void onPong(int ms){ pingMs = ms; }
-            public void onRoomBusy(int pl, int mode){
-                roomBusy = true;
-                roomBusyPlayers = pl;
-                roomBusyMode = mode;
-                state = GameState.SPECTATING;
+            public void onReadyUpdate(int ready,int total,int[] votes){
+                readyCount=ready; minPlayers=total; modeVotes=votes;
+                totalInRoom = Math.max(1, total);
             }
             public void onReadyReset(){
-                iAmReady = false;
-                readyCount = 0;
-                modeVotes = new int[6];
+                iAmReady=false; readyCount=0; modeVotes=new int[3];
             }
-            public void onReadyUpdate(int ready,
-                    int total, int[] votes){
-                readyCount = ready;
-                minPlayers = total;
-                modeVotes = votes;
+            public void onRoomBusy(int pl,int mode){
+                roomBusy=true; roomBusyPlayers=pl; roomBusyMode=mode;
             }
+            public void onPong(int ms){ pingMs=ms; }
             public void onDisconnected(){
-                if(state==GameState.PLAYING||state==GameState.DEAD){
-                    state=GameState.CONNECTING;
-                    statusMsg="Reconectando...";
-                    long t=System.currentTimeMillis();
-                    if(t-lastReconnect>3000){
-                        lastReconnect=t;
-                        netClient.connect(currentRoomId);
-                    }
-                }
+                state=GameState.CONNECTING;
+                statusMsg="Reconectando...";
             }
         });
         netClient.connect(roomId);
@@ -230,7 +231,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         roomBusy=false;
         iAmReady = false;
         readyCount = 0;
-        modeVotes=new int[6];
+        modeVotes=new int[3];
         myVotedMode=0;
         Map.generate(System.currentTimeMillis());
         player=new Player(Map.getSpawnX(),Map.getSpawnY());
@@ -283,6 +284,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         delta=Math.min((now-prevTime)/16_666_667f,3f);
         prevTime=now; frameCount++;
 
+        if(state==GameState.WAITING && iAmReady && amHost
+                && readyCount==totalInRoom){
+            hostStartGame();
+        }
+
         switch(state){
             case NAME_INPUT: drawNameScreen(); return;
             case MENU:       drawMenuScreen(); return;
@@ -323,24 +329,18 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         update();
         if(attackPressed&&canAttack()){
-            if(netClient!=null) netClient.sendAttack();
+            if(netClient!=null) netClient.sendAttack("melee");
             attackPressed=false; showAttackFX=true;
         }
         if(netClient!=null)
-            netClient.sendInput(player.x,player.y,player.angle);
+            netClient.sendInput(player.x, player.y,
+                player.angle, myHp, myHp>0);
         if(System.currentTimeMillis()-lastPingTime>3000){
             lastPingTime=System.currentTimeMillis();
             if(netClient!=null) netClient.sendPing();
         }
 
         float interp=Math.min(1f,delta*0.25f);
-        if(netClient!=null){
-            for(NetClient.RemotePlayer rp:netClient.remotePlayers){
-                RemoteState rs=remoteStates.computeIfAbsent(
-                    rp.id,k->new RemoteState());
-                rs.update(rp.x,rp.y,rp.angle);
-            }
-        }
         for(RemoteState rs:remoteStates.values()) rs.lerp(interp);
 
         gameTimer=netClient!=null?netClient.lastTimer:0;
@@ -919,7 +919,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setColor(Color.argb(120,150,140,130));
         p.setTextSize(SH*0.018f);
         c.drawText("SALA "+currentRoomId+" · "+
-            modeNames[Math.min(gameMode,5)],
+            modeNames[Math.min(gameMode,2)],
             SW/2,SH*0.082f,p);
 
         float circleY = SH*0.14f;
@@ -931,11 +931,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             for(int i=0;i<rps.size();i++){
                 NetClient.RemotePlayer rp = rps.get(i);
                 float cx2 = spacing*(i+1);
-                p.setColor(rp.ready ?
+                p.setColor(rp.alive ?
                     Color.rgb(50,180,80):Color.rgb(60,60,60));
                 p.setStyle(Paint.Style.FILL);
                 c.drawCircle(cx2,circleY,SH*0.028f,p);
-                if(!rp.ready){
+                if(!rp.alive){
                     p.setColor(Color.rgb(90,90,90));
                     p.setStyle(Paint.Style.STROKE);
                     p.setStrokeWidth(2f);
@@ -955,7 +955,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setTextSize(SH*0.048f);
         p.setFakeBoldText(true);
         p.setTextAlign(Paint.Align.CENTER);
-        int totalPlayers=Math.max(1,playerCount);
+        int totalPlayers=Math.max(1,totalInRoom);
         c.drawText(readyCount+"/"+
             totalPlayers+" listos",
             SW/2,SH*0.280f,p);
@@ -1575,6 +1575,68 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 }
                 break;
             default: break;
+        }
+    }
+
+    private void hostStartGame(){
+        if(netClient==null||!netClient.isOpen()||!amHost) return;
+
+        int winMode=-1,maxV=0;
+        if(modeVotes!=null)
+            for(int i=0;i<modeVotes.length;i++)
+                if(modeVotes[i]>maxV){maxV=modeVotes[i];winMode=i;}
+        if(winMode<0) winMode=new java.util.Random().nextInt(3);
+
+        long seed=System.currentTimeMillis();
+        Map.generate(seed);
+
+        com.game.net.SpawnCalculator sc=
+            new com.game.net.SpawnCalculator(seed);
+        List<float[]> spawns=sc.generate(totalInRoom);
+
+        JsonObject broadcast=new JsonObject();
+        broadcast.addProperty("type","game_init");
+        broadcast.addProperty("mode",winMode);
+        broadcast.addProperty("map_seed",seed);
+        broadcast.addProperty("duration",winMode==1?120:180);
+
+        JsonArray assignments=new JsonArray();
+        List<Integer> ids=new ArrayList<>();
+        ids.add(netClient.myId);
+        for(NetClient.RemotePlayer rp:netClient.remotePlayers)
+            ids.add(rp.id);
+        java.util.Collections.shuffle(ids);
+
+        for(int i=0;i<ids.size();i++){
+            JsonObject a=new JsonObject();
+            a.addProperty("player_id",ids.get(i));
+            float[] s=i<spawns.size()?spawns.get(i):spawns.get(0);
+            a.addProperty("spawn_x",s[0]);
+            a.addProperty("spawn_y",s[1]);
+            if(winMode==0) a.addProperty("is_killer",i==0);
+            if(winMode==2) a.addProperty("team",i<ids.size()/2?0:1);
+            assignments.add(a);
+        }
+        broadcast.add("assignments",assignments);
+        netClient.hostBroadcast(broadcast);
+
+        for(JsonElement el:assignments){
+            JsonObject a=el.getAsJsonObject();
+            if(a.get("player_id").getAsInt()==netClient.myId){
+                float sx=a.get("spawn_x").getAsFloat();
+                float sy=a.get("spawn_y").getAsFloat();
+                boolean killer=a.has("is_killer")&&
+                    a.get("is_killer").getAsBoolean();
+                int team=a.has("team")?a.get("team").getAsInt():-1;
+                if(seed!=0) Map.generate(seed);
+                gameMode=winMode; myTeam=team; amKiller=killer;
+                amInfected=false;
+                amDetective=false;
+                myHp=100; state=GameState.PLAYING;
+                player=new Player(sx,sy);
+                statusMsg="";
+                break;
+            }
         }
     }
 
