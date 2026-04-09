@@ -14,16 +14,42 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/res/raw
-          key: game-assets-v1
+          key: game-assets-v2
 
       - name: Download assets
         run: |
           mkdir -p app/src/main/res/raw
           mkdir -p app/src/main/res/drawable-nodpi
           BASE="https://raw.githubusercontent.com/bjalalsjzbslalqoqueeyhskaambpqo/GameTool/game-assets/assets"
-          [ -f app/src/main/res/drawable-nodpi/wall.png ] || curl -L "$BASE/wall.png" -o app/src/main/res/drawable-nodpi/wall.png
-          [ -f app/src/main/res/drawable-nodpi/floor.png ] || curl -L "$BASE/floor.png" -o app/src/main/res/drawable-nodpi/floor.png
-          [ -f app/src/main/res/drawable-nodpi/ceiling.png ] || curl -L "$BASE/ceiling.png" -o app/src/main/res/drawable-nodpi/ceiling.png
+          fetch_png () {
+            local src="$1"
+            local dst="$2"
+            if [ ! -f "$dst" ]; then
+              curl -fL --retry 3 --retry-all-errors --connect-timeout 15 "$src" -o "$dst"
+            fi
+          }
+          fetch_png "$BASE/wall.png" app/src/main/res/drawable-nodpi/wall.png
+          fetch_png "$BASE/floor.png" app/src/main/res/drawable-nodpi/floor.png
+          fetch_png "$BASE/ceiling.png" app/src/main/res/drawable-nodpi/ceiling.png
+          python - <<'PY'
+from pathlib import Path
+png_sig = b"\x89PNG\r\n\x1a\n"
+paths = [
+    Path("app/src/main/res/drawable-nodpi/wall.png"),
+    Path("app/src/main/res/drawable-nodpi/floor.png"),
+    Path("app/src/main/res/drawable-nodpi/ceiling.png"),
+]
+bad = []
+for p in paths:
+    if (not p.exists()) or p.stat().st_size < 64:
+        bad.append(f"{p}: missing or too small")
+        continue
+    head = p.read_bytes()[:8]
+    if head != png_sig:
+        bad.append(f"{p}: invalid PNG signature")
+if bad:
+    raise SystemExit("Invalid texture assets:\\n" + "\\n".join(bad))
+PY
 
       - uses: actions/setup-java@v4
         with:
