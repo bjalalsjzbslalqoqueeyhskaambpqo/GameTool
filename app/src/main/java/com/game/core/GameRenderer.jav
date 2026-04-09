@@ -115,6 +115,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     public GameRenderer(Context ctx) { this.ctx=ctx; }
 
     public void connectToServer() {
+        if (netClient != null) {
+            netClient.disconnect();
+            netClient = null;
+        }
+        remoteStates.clear();
         String name = "P"+(int)(Math.random()*900+100);
         String[] rooms = {
             NetClient.ROOM_0, NetClient.ROOM_1, NetClient.ROOM_2,
@@ -288,9 +293,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         List<float[]> sprites=new ArrayList<>();
         if(netClient!=null){
-            int myId=netClient.myId;
+            int myId = netClient != null ? netClient.myId : -1;
             for(NetClient.RemotePlayer rp:netClient.remotePlayers){
-                if(rp.id==myId||rp.spectator||!rp.alive) continue;
+                if (rp.id == myId) continue;
+                if (rp.spectator || !rp.alive) continue;
                 RemoteState rs=remoteStates.get(rp.id);
                 if(rs!=null&&rs.init)
                     sprites.add(new float[]{rs.rx,rs.ry});
