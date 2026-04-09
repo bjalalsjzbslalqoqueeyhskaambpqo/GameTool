@@ -25,8 +25,11 @@ public class NetClient {
         void onConnected();
         void onJoined(int myId, long seed, boolean spectator);
         void onRoomInfo(int count, int min, boolean started);
-        void onGameStart();
+        void onGameStart(boolean isKiller, int duration);
         void onState(List<RemotePlayer> players);
+        void onHit(int hp);
+        void onPlayerDied(int id);
+        void onGameEnd(boolean killerWon);
         void onDisconnected();
     }
 
@@ -94,7 +97,9 @@ public class NetClient {
                         msg.get("game_started").getAsBoolean());
                     break;
                 case "game_start":
-                    listener.onGameStart();
+                    boolean isKiller = msg.get("is_killer").getAsBoolean();
+                    int duration = msg.get("duration").getAsInt();
+                    listener.onGameStart(isKiller, duration);
                     break;
                 case "state":
                     JsonArray arr = msg.get("players").getAsJsonArray();
@@ -114,6 +119,18 @@ public class NetClient {
                     remotePlayers.clear();
                     remotePlayers.addAll(list);
                     listener.onState(list);
+                    break;
+                case "hit":
+                    int hp = msg.get("hp").getAsInt();
+                    listener.onHit(hp);
+                    break;
+                case "player_died":
+                    int deadId = msg.get("id").getAsInt();
+                    listener.onPlayerDied(deadId);
+                    break;
+                case "game_end":
+                    boolean killerWon = msg.get("killer_won").getAsBoolean();
+                    listener.onGameEnd(killerWon);
                     break;
             }
         } catch (Exception e) {

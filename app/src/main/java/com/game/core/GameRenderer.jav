@@ -60,6 +60,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private volatile int     minPlayers    = 2;
     private volatile boolean showAttackFX  = false;
     private volatile int     myHp          = 100;
+    private volatile boolean amKiller      = false;
+    private volatile boolean isDead        = false;
+    private volatile boolean showEndScreen = false;
+    private volatile String  endMsg        = "";
+    private volatile int     gameDuration  = 180;
     private long lastReconnect = 0;
 
     private static final String VERT =
@@ -90,11 +95,25 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 minPlayers  = min;
                 if (!started) statusMsg = count + "/" + min + " jugadores";
             }
-            public void onGameStart() {
+            public void onGameStart(boolean isKiller, int dur) {
                 gameStarted = true;
+                amKiller = isKiller;
+                gameDuration = dur;
                 statusMsg   = "";
             }
             public void onState(List<NetClient.RemotePlayer> p) {}
+            public void onHit(int hp) { myHp = hp; }
+            public void onPlayerDied(int id) {
+                if (netClient != null && id == netClient.myId) {
+                    myHp = 0;
+                    isDead = true;
+                }
+            }
+            public void onGameEnd(boolean killerWon) {
+                gameStarted = false;
+                endMsg = killerWon ? "El asesino ganó" : "¡Sobreviviste!";
+                showEndScreen = true;
+            }
             public void onDisconnected() {
                 gameStarted = false;
                 statusMsg   = "Reconectando...";
@@ -152,6 +171,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             }
         }
 
+        if (showEndScreen) {
+            drawEndScreen();
+            return;
+        }
+
         if (!gameStarted) {
             drawWaitingScreen();
             return;
@@ -205,6 +229,12 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             for (NetClient.RemotePlayer rp : netClient.remotePlayers)
                 if (!rp.spectator) alive++;
         hud.drawText(alive + " vivos", RW*0.02f, RH*0.09f, hp);
+        if (amKiller) {
+            hp.setColor(Color.argb(230, 220, 60, 60));
+            hp.setTextSize(RH * 0.07f);
+            hp.setTextAlign(Paint.Align.LEFT);
+            hud.drawText("ASESINO", RW * 0.02f, RH * 0.17f, hp);
+        }
 
         // Crosshair
         hp.setColor(Color.argb(150,255,255,255));
@@ -218,6 +248,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             hud.drawRect(0, 0, RW, RH, hp);
             showAttackFX = false;
         }
+        if (isDead) {
+            hp.setColor(Color.argb(120, 180, 20, 20));
+            hud.drawRect(0, 0, RW, RH, hp);
+            hp.setColor(Color.argb(220, 255, 255, 255));
+            hp.setTextAlign(Paint.Align.CENTER);
+            hp.setTextSize(RH * 0.14f);
+            hud.drawText("HAS MUERTO", RW / 2f, RH * 0.54f, hp);
+        }
 
         // Botón ataque — indicador visual
         hp.setColor(Color.argb(60,200,50,50));
@@ -227,6 +265,18 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         hp.setTextAlign(Paint.Align.CENTER);
         hud.drawText("ATK", RW*0.84f, RH*0.81f, hp);
 
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
+        drawQuad();
+    }
+
+    private void drawEndScreen() {
+        Canvas c = new Canvas(frameBmp);
+        c.drawColor(Color.BLACK);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setTextAlign(Paint.Align.CENTER);
+        p.setColor(Color.rgb(220, 220, 220));
+        p.setTextSize(RH * 0.12f);
+        c.drawText(endMsg, RW / 2f, RH * 0.52f, p);
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
         drawQuad();
     }
