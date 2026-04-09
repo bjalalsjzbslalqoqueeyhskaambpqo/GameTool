@@ -367,116 +367,185 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void drawNameScreen(){
-        Canvas c=new Canvas(frameBmpHD);
+        int BG      = Color.rgb(8,  6,  10);
+        int BG2     = Color.rgb(15, 12, 18);
+        int RED     = Color.rgb(180,30, 30);
+        int RED2    = Color.rgb(220,60, 60);
+        int GOLD    = Color.rgb(200,160,60);
+        int DIM     = Color.argb(180,80,80,90);
+        int WHITE   = Color.rgb(230,225,220);
+        int WHITE2  = Color.argb(120,180,175,170);
         float SW=screenW, SH=screenH;
-        c.drawColor(Color.BLACK);
-        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        Canvas c = new Canvas(frameBmpHD);
+
+        c.drawColor(BG);
+        Paint grad = new Paint();
+        android.graphics.LinearGradient lg =
+            new android.graphics.LinearGradient(
+            0,0,0,SH,
+            Color.argb(80,180,30,30),
+            Color.TRANSPARENT,
+            android.graphics.Shader.TileMode.CLAMP);
+        grad.setShader(lg);
+        c.drawRect(0,0,SW,SH*0.4f,grad);
+
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
 
-        p.setColor(Color.rgb(180,30,30));
-        p.setTextSize(SH*0.08f);
+        p.setColor(Color.argb(60,180,20,20));
+        p.setTextSize(SH*0.11f);
         p.setFakeBoldText(true);
-        c.drawText("DUNGEON",SW/2f,SH*0.08f,p);
+        c.drawText("DUNGEON",SW/2+4,SH*0.16f+4,p);
+        p.setColor(RED2);
+        c.drawText("DUNGEON",SW/2,SH*0.16f,p);
         p.setFakeBoldText(false);
 
-        p.setColor(Color.rgb(140,140,140));
-        p.setTextSize(SH*0.035f);
-        c.drawText("Tu nombre:",SW/2f,SH*0.18f,p);
+        p.setColor(Color.argb(80,200,50,50));
+        p.setStrokeWidth(1f);
+        c.drawLine(SW*0.3f,SH*0.20f,SW*0.7f,SH*0.20f,p);
 
-        // Campo de nombre
-        p.setColor(Color.argb(180,40,40,40));
+        p.setColor(WHITE2);
+        p.setTextSize(SH*0.022f);
+        c.drawText("INGRESÁ TU NOMBRE",SW/2,SH*0.28f,p);
+
+        p.setColor(BG2);
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(SW*0.1f,SH*0.22f,SW*0.9f,SH*0.30f,p);
-        p.setColor(Color.rgb(100,80,80));
+        android.graphics.RectF nameBox =
+            new android.graphics.RectF(
+            SW*0.08f,SH*0.31f,SW*0.92f,SH*0.41f);
+        c.drawRoundRect(nameBox,16,16,p);
+        p.setColor(playerName.isEmpty()?
+            Color.argb(60,150,50,50):RED);
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(1.5f);
-        c.drawRect(SW*0.1f,SH*0.22f,SW*0.9f,SH*0.30f,p);
+        p.setStrokeWidth(2f);
+        c.drawRoundRect(nameBox,16,16,p);
         p.setStyle(Paint.Style.FILL);
 
-        String display=playerName.isEmpty()?"Toca para escribir...":
-            playerName+"_";
-        p.setColor(playerName.isEmpty()
-            ?Color.rgb(80,80,80):Color.WHITE);
-        p.setTextSize(SH*0.035f);
-        c.drawText(display,SW/2f,SH*0.275f,p);
-
-        float kbTop = SH * 0.34f;
-        float kbH   = SH * 0.56f;
-        float keyH  = kbH / 4.2f;
-
-        p.setColor(Color.argb(220, 20, 20, 20));
-        p.setStyle(Paint.Style.FILL);
-        c.drawRect(0, kbTop, SW, SH, p);
-
-        float keyW1 = SW / 10f;
-        for(int i=0; i<ROW1.length; i++){
-            float kx = i * keyW1;
-            float ky = kbTop + keyH*0.05f;
-            p.setColor(Color.rgb(45,45,45));
-            p.setStyle(Paint.Style.FILL);
-            c.drawRect(kx+1, ky, kx+keyW1-1, ky+keyH*0.85f, p);
-            p.setColor(Color.rgb(90,90,90));
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1f);
-            c.drawRect(kx+1, ky, kx+keyW1-1, ky+keyH*0.85f, p);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.WHITE);
-            p.setTextSize(SH*0.028f);
-            c.drawText(ROW1[i], kx+keyW1/2f, ky+keyH*0.58f, p);
-        }
-
-        float keyW2 = SW / 10f;
-        float offX2 = (SW - ROW2.length * keyW2) / 2f;
-        for(int i=0; i<ROW2.length; i++){
-            float kx = offX2 + i * keyW2;
-            float ky = kbTop + keyH*1.1f;
-            p.setColor(Color.rgb(45,45,45));
-            p.setStyle(Paint.Style.FILL);
-            c.drawRect(kx+1, ky, kx+keyW2-1, ky+keyH*0.85f, p);
-            p.setColor(Color.rgb(90,90,90));
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1f);
-            c.drawRect(kx+1, ky, kx+keyW2-1, ky+keyH*0.85f, p);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.WHITE);
-            p.setTextSize(SH*0.028f);
-            c.drawText(ROW2[i], kx+keyW2/2f, ky+keyH*0.58f, p);
-        }
-
-        float keyW3 = SW / 9f;
-        float offX3 = (SW - ROW3.length * keyW3) / 2f;
-        for(int i=0; i<ROW3.length; i++){
-            float kx = offX3 + i * keyW3;
-            float ky = kbTop + keyH*2.2f;
-            boolean isDel = "⌫".equals(ROW3[i]);
-            p.setColor(isDel ? Color.rgb(100,35,35) : Color.rgb(45,45,45));
-            p.setStyle(Paint.Style.FILL);
-            c.drawRect(kx+1, ky, kx+keyW3-1, ky+keyH*0.85f, p);
-            p.setColor(isDel ? Color.rgb(180,70,70) : Color.rgb(90,90,90));
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1f);
-            c.drawRect(kx+1, ky, kx+keyW3-1, ky+keyH*0.85f, p);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.WHITE);
-            p.setTextSize(SH*0.028f);
-            c.drawText(ROW3[i], kx+keyW3/2f, ky+keyH*0.58f, p);
-        }
-
-        if(!playerName.isEmpty()){
-            float btnY = SH*0.92f;
-            p.setColor(Color.rgb(30,110,40));
-            p.setStyle(Paint.Style.FILL);
-            c.drawRect(SW*0.2f, btnY, SW*0.8f, btnY+keyH*0.85f, p);
-            p.setColor(Color.rgb(80,180,90));
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1.2f);
-            c.drawRect(SW*0.2f, btnY, SW*0.8f, btnY+keyH*0.85f, p);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.WHITE);
+        if(playerName.isEmpty()){
+            p.setColor(Color.argb(80,150,140,130));
             p.setTextSize(SH*0.032f);
+            c.drawText("tu nombre...",SW/2,SH*0.37f,p);
+        } else {
+            p.setColor(WHITE);
+            p.setTextSize(SH*0.038f);
             p.setFakeBoldText(true);
-            c.drawText(ROW4_OK, SW/2f, btnY+keyH*0.6f, p);
+            String cursor=(frameCount/20%2==0)?"_":"";
+            c.drawText(playerName+cursor,SW/2,SH*0.37f,p);
             p.setFakeBoldText(false);
+        }
+
+        float kbTop=SH*0.44f;
+        float kbH=SH*0.44f;
+        float keyH=kbH/4.2f;
+        float keyR=10f;
+
+        p.setColor(Color.argb(200,12,10,15));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRect(0,kbTop-SH*0.01f,SW,SH,p);
+
+        float kw1=SW/10.5f;
+        float off1=(SW-ROW1.length*kw1)/2f;
+        for(int i=0;i<ROW1.length;i++){
+            float kx=off1+i*kw1;
+            float ky=kbTop+keyH*0.05f;
+            p.setColor(Color.rgb(28,24,32));
+            p.setStyle(Paint.Style.FILL);
+            android.graphics.RectF kr=
+                new android.graphics.RectF(
+                kx+2,ky+2,kx+kw1-4,ky+keyH-4);
+            c.drawRoundRect(kr,keyR,keyR,p);
+            p.setColor(Color.argb(40,200,150,150));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1f);
+            c.drawRoundRect(kr,keyR,keyR,p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(WHITE);
+            p.setTextSize(keyH*0.45f);
+            p.setTextAlign(Paint.Align.CENTER);
+            c.drawText(ROW1[i],kx+kw1/2,ky+keyH*0.70f,p);
+        }
+
+        float kw2=SW/10.2f;
+        float off2=(SW-ROW2.length*kw2)/2f;
+        for(int i=0;i<ROW2.length;i++){
+            float kx=off2+i*kw2;
+            float ky=kbTop+keyH*1.1f;
+            p.setColor(Color.rgb(28,24,32));
+            p.setStyle(Paint.Style.FILL);
+            android.graphics.RectF kr=
+                new android.graphics.RectF(
+                kx+2,ky+2,kx+kw2-4,ky+keyH-4);
+            c.drawRoundRect(kr,keyR,keyR,p);
+            p.setColor(Color.argb(40,200,150,150));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1f);
+            c.drawRoundRect(kr,keyR,keyR,p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(WHITE);
+            p.setTextSize(keyH*0.45f);
+            p.setTextAlign(Paint.Align.CENTER);
+            c.drawText(ROW2[i],kx+kw2/2,ky+keyH*0.70f,p);
+        }
+
+        float kw3=SW/9.2f;
+        float off3=(SW-ROW3.length*kw3)/2f;
+        for(int i=0;i<ROW3.length;i++){
+            float kx=off3+i*kw3;
+            float ky=kbTop+keyH*2.15f;
+            boolean isDel=ROW3[i].equals("⌫");
+            p.setColor(isDel?
+                Color.rgb(60,20,20):Color.rgb(28,24,32));
+            p.setStyle(Paint.Style.FILL);
+            android.graphics.RectF kr=
+                new android.graphics.RectF(
+                kx+2,ky+2,kx+kw3-4,ky+keyH-4);
+            c.drawRoundRect(kr,keyR,keyR,p);
+            p.setColor(isDel?
+                Color.argb(80,220,60,60):
+                Color.argb(40,200,150,150));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1f);
+            c.drawRoundRect(kr,keyR,keyR,p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(isDel?Color.rgb(220,100,100):WHITE);
+            p.setTextSize(keyH*0.45f);
+            p.setTextAlign(Paint.Align.CENTER);
+            c.drawText(ROW3[i],kx+kw3/2,ky+keyH*0.70f,p);
+        }
+
+        float btnY=kbTop+keyH*3.25f;
+        float btnH=keyH*0.90f;
+        if(!playerName.isEmpty()){
+            p.setColor(RED);
+            p.setStyle(Paint.Style.FILL);
+            android.graphics.RectF btn=
+                new android.graphics.RectF(
+                SW*0.15f,btnY,SW*0.85f,btnY+btnH);
+            c.drawRoundRect(btn,16,16,p);
+            p.setColor(Color.argb(180,255,200,200));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(2f);
+            c.drawRoundRect(btn,16,16,p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(WHITE);
+            p.setTextSize(btnH*0.52f);
+            p.setFakeBoldText(true);
+            p.setTextAlign(Paint.Align.CENTER);
+            c.drawText("CONTINUAR",SW/2,btnY+btnH*0.68f,p);
+            p.setFakeBoldText(false);
+        } else {
+            p.setColor(Color.argb(40,150,50,50));
+            p.setStyle(Paint.Style.FILL);
+            android.graphics.RectF btn=
+                new android.graphics.RectF(
+                SW*0.15f,btnY,SW*0.85f,btnY+btnH);
+            c.drawRoundRect(btn,16,16,p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(60,150,130,120));
+            p.setTextSize(btnH*0.45f);
+            p.setTextAlign(Paint.Align.CENTER);
+            c.drawText("ingresá tu nombre primero",
+                SW/2,btnY+btnH*0.68f,p);
         }
         flushFrameHD();
     }
@@ -503,187 +572,339 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private static final String ROW4_OK = "LISTO";
 
     private void drawMenuScreen(){
-        Canvas c=new Canvas(frameBmpHD);
+        int BG      = Color.rgb(8,  6,  10);
+        int BG2     = Color.rgb(15, 12, 18);
+        int RED     = Color.rgb(180,30, 30);
+        int RED2    = Color.rgb(220,60, 60);
+        int GOLD    = Color.rgb(200,160,60);
+        int DIM     = Color.argb(180,80,80,90);
+        int WHITE   = Color.rgb(230,225,220);
+        int WHITE2  = Color.argb(120,180,175,170);
         float SW=screenW, SH=screenH;
-        c.drawColor(Color.BLACK);
-        c.scale(SW/(float)RW, SH/(float)RH);
+        Canvas c = new Canvas(frameBmpHD);
+        c.drawColor(BG);
+
+        Paint grad=new Paint();
+        android.graphics.LinearGradient lg=
+            new android.graphics.LinearGradient(
+            0,0,0,SH*0.35f,
+            Color.argb(100,180,20,20),
+            Color.TRANSPARENT,
+            android.graphics.Shader.TileMode.CLAMP);
+        grad.setShader(lg);
+        c.drawRect(0,0,SW,SH*0.35f,grad);
+
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+
         p.setTextAlign(Paint.Align.CENTER);
-
-        p.setColor(Color.rgb(180,30,30));
-        p.setTextSize(RH*0.10f);
+        p.setColor(Color.argb(50,200,30,30));
+        p.setTextSize(SH*0.095f);
         p.setFakeBoldText(true);
-        c.drawText("DUNGEON",RW/2f,RH*0.11f,p);
+        c.drawText("DUNGEON",SW/2+3,SH*0.13f+3,p);
+        p.setColor(RED2);
+        c.drawText("DUNGEON",SW/2,SH*0.13f,p);
         p.setFakeBoldText(false);
 
-        p.setColor(Color.argb(120,100,100,100));
-        p.setTextSize(RH*0.035f);
-        c.drawText("Hola, "+playerName,RW/2f,RH*0.17f,p);
+        p.setColor(Color.argb(100,180,160,140));
+        p.setTextSize(SH*0.020f);
+        c.drawText("jugando como",SW/2,SH*0.175f,p);
+        p.setColor(GOLD);
+        p.setTextSize(SH*0.028f);
+        p.setFakeBoldText(true);
+        c.drawText(playerName,SW/2,SH*0.210f,p);
+        p.setFakeBoldText(false);
+        p.setColor(Color.argb(80,200,160,60));
+        p.setTextSize(SH*0.020f);
+        c.drawText("✏ cambiar",SW/2,SH*0.238f,p);
 
-        // Botón CREAR SALA
-        p.setColor(Color.rgb(100,30,30));
-        p.setStyle(Paint.Style.FILL);
-        c.drawRect(RW*0.05f,RH*0.21f,RW*0.95f,RH*0.33f,p);
-        p.setColor(Color.rgb(220,80,80));
-        p.setStyle(Paint.Style.STROKE);
+        p.setColor(Color.argb(60,180,40,40));
         p.setStrokeWidth(1f);
-        c.drawRect(RW*0.05f,RH*0.21f,RW*0.95f,RH*0.33f,p);
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.WHITE);
-        p.setTextSize(RH*0.055f);
-        p.setFakeBoldText(true);
-        c.drawText("CREAR SALA",RW/2f,RH*0.29f,p);
-        p.setFakeBoldText(false);
+        c.drawLine(SW*0.15f,SH*0.255f,
+            SW*0.85f,SH*0.255f,p);
 
-        // Botón UNIRSE
-        p.setColor(Color.rgb(30,30,100));
+        android.graphics.RectF btnCrear=
+            new android.graphics.RectF(
+            SW*0.06f,SH*0.275f,SW*0.94f,SH*0.365f);
+        p.setColor(Color.rgb(100,20,20));
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(RW*0.05f,RH*0.36f,RW*0.95f,RH*0.48f,p);
-        p.setColor(Color.rgb(80,80,220));
+        c.drawRoundRect(btnCrear,20,20,p);
+        p.setColor(RED);
         p.setStyle(Paint.Style.STROKE);
-        c.drawRect(RW*0.05f,RH*0.36f,RW*0.95f,RH*0.48f,p);
+        p.setStrokeWidth(2f);
+        c.drawRoundRect(btnCrear,20,20,p);
         p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.WHITE);
-        p.setTextSize(RH*0.055f);
+        p.setColor(WHITE);
+        p.setTextSize(SH*0.040f);
         p.setFakeBoldText(true);
-        c.drawText("UNIRSE CON CÓDIGO",RW/2f,RH*0.44f,p);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("CREAR SALA",SW/2,SH*0.330f,p);
         p.setFakeBoldText(false);
+        p.setColor(Color.argb(100,200,150,150));
+        p.setTextSize(SH*0.017f);
+        c.drawText("elegí el modo y esperá amigos",
+            SW/2,SH*0.352f,p);
 
-        // Separador
-        p.setColor(Color.rgb(50,50,50));
+        android.graphics.RectF btnUnir=
+            new android.graphics.RectF(
+            SW*0.06f,SH*0.380f,SW*0.94f,SH*0.465f);
+        p.setColor(Color.rgb(15,15,60));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRoundRect(btnUnir,20,20,p);
+        p.setColor(Color.rgb(60,60,180));
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(2f);
+        c.drawRoundRect(btnUnir,20,20,p);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(WHITE);
+        p.setTextSize(SH*0.040f);
+        p.setFakeBoldText(true);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("UNIRSE CON CÓDIGO",SW/2,SH*0.430f,p);
+        p.setFakeBoldText(false);
+        p.setColor(Color.argb(100,150,150,200));
+        p.setTextSize(SH*0.017f);
+        c.drawText("ingresá el código de sala",
+            SW/2,SH*0.452f,p);
+
+        p.setColor(Color.argb(50,150,150,150));
         p.setStrokeWidth(1f);
-        c.drawLine(RW*0.1f,RH*0.52f,RW*0.9f,RH*0.52f,p);
+        c.drawLine(SW*0.06f,SH*0.485f,
+            SW*0.38f,SH*0.485f,p);
+        c.drawLine(SW*0.62f,SH*0.485f,
+            SW*0.94f,SH*0.485f,p);
+        p.setColor(Color.argb(100,120,110,100));
+        p.setTextSize(SH*0.018f);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("SALAS RÁPIDAS",SW/2,SH*0.490f,p);
 
-        p.setColor(Color.rgb(80,80,80));
-        p.setTextSize(RH*0.038f);
-        c.drawText("Salas rápidas",RW/2f,RH*0.57f,p);
+        String[] modeNames={"Asesino","Infección",
+            "Free for All","Detective","Apagón","Zona"};
+        String[] modeIcons={"⚔","🦠","💀","🔍","💡","⬛"};
+        int[] modeColors={
+            Color.rgb(140,25,25),
+            Color.rgb(30,100,20),
+            Color.rgb(140,110,20),
+            Color.rgb(20,50,120),
+            Color.rgb(60,15,100),
+            Color.rgb(120,55,15)};
+        int[] modeBorders={
+            Color.rgb(200,50,50),
+            Color.rgb(60,180,50),
+            Color.rgb(200,160,30),
+            Color.rgb(50,90,200),
+            Color.rgb(100,40,160),
+            Color.rgb(180,90,30)};
 
-        // 6 botones de modo rápido — 2 columnas
+        float btnW=(SW-SW*0.18f)/2f;
+        float btnH2=SH*0.088f;
+        float startY=SH*0.505f;
+        float gapX=SW*0.06f;
+        float gapY=SH*0.010f;
+
         for(int i=0;i<6;i++){
             int col=i%2, row=i/2;
-            float bx=RW*(col==0?0.05f:0.52f);
-            float by=RH*(0.60f+row*0.13f);
-            float bw=RW*0.43f, bh=RH*0.11f;
-            int mc=MODE_COLORS[i];
-            p.setColor(Color.argb(120,
-                Color.red(mc),Color.green(mc),Color.blue(mc)));
+            float bx=gapX+col*(btnW+SW*0.06f);
+            float by=startY+row*(btnH2+gapY);
+            android.graphics.RectF btn=
+                new android.graphics.RectF(
+                bx,by,bx+btnW,by+btnH2);
+            p.setColor(modeColors[i]);
             p.setStyle(Paint.Style.FILL);
-            c.drawRect(bx,by,bx+bw,by+bh,p);
-            p.setColor(Color.argb(180,
-                Color.red(mc),Color.green(mc),Color.blue(mc)));
+            c.drawRoundRect(btn,14,14,p);
+            p.setColor(modeBorders[i]);
             p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1f);
-            c.drawRect(bx,by,bx+bw,by+bh,p);
+            p.setStrokeWidth(1.5f);
+            c.drawRoundRect(btn,14,14,p);
             p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.WHITE);
-            p.setTextSize(RH*0.040f);
-            p.setTextAlign(Paint.Align.CENTER);
-            c.drawText(MODE_NAMES[i],bx+bw/2,by+bh*0.45f,p);
-            p.setColor(Color.argb(150,180,180,180));
-            p.setTextSize(RH*0.030f);
-            c.drawText(MODE_DESC[i],bx+bw/2,by+bh*0.78f,p);
+            p.setColor(Color.argb(150,255,255,255));
+            p.setTextSize(btnH2*0.35f);
+            p.setTextAlign(Paint.Align.LEFT);
+            c.drawText(modeIcons[i],
+                bx+btnW*0.06f,by+btnH2*0.52f,p);
+            p.setColor(WHITE);
+            p.setTextSize(btnH2*0.30f);
+            p.setFakeBoldText(true);
+            p.setTextAlign(Paint.Align.LEFT);
+            c.drawText(modeNames[i],
+                bx+btnW*0.28f,by+btnH2*0.48f,p);
+            p.setFakeBoldText(false);
+            p.setColor(Color.argb(100,180,170,160));
+            p.setTextSize(btnH2*0.20f);
+            c.drawText("mín 2 jugadores",
+                bx+btnW*0.28f,by+btnH2*0.72f,p);
         }
         flushFrameHD();
     }
 
     private void drawCreateScreen(){
-        Canvas c=new Canvas(frameBmpHD);
+        int BG      = Color.rgb(8,  6,  10);
+        int BG2     = Color.rgb(15, 12, 18);
+        int RED     = Color.rgb(180,30, 30);
+        int RED2    = Color.rgb(220,60, 60);
+        int GOLD    = Color.rgb(200,160,60);
+        int DIM     = Color.argb(180,80,80,90);
+        int WHITE   = Color.rgb(230,225,220);
+        int WHITE2  = Color.argb(120,180,175,170);
         float SW=screenW, SH=screenH;
-        c.drawColor(Color.BLACK);
-        c.scale(SW/(float)RW, SH/(float)RH);
+        Canvas c=new Canvas(frameBmpHD);
+        c.drawColor(BG);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        String[] modeNames={"Asesino","Infección",
+            "Free for All","Detective","Apagón","Zona"};
+        String[] modeIcons={"⚔","🦠","💀","🔍","💡","⬛"};
+        String[] modeDescs={
+            "1 asesino — todos los demás escapan",
+            "El infectado contagia a los sanos",
+            "Todos armados — último en pie gana",
+            "Detective rastrea al asesino",
+            "Las luces se apagan cada 30 segundos",
+            "La zona se cierra — sobrevivir o morir"};
+        int[] modeColors={
+            Color.rgb(140,25,25),
+            Color.rgb(30,100,20),
+            Color.rgb(140,110,20),
+            Color.rgb(20,50,120),
+            Color.rgb(60,15,100),
+            Color.rgb(120,55,15)};
+        int[] modeBorders={
+            Color.rgb(200,50,50),
+            Color.rgb(60,180,50),
+            Color.rgb(200,160,30),
+            Color.rgb(50,90,200),
+            Color.rgb(100,40,160),
+            Color.rgb(180,90,30)};
+
         p.setTextAlign(Paint.Align.CENTER);
-
-        p.setColor(Color.rgb(180,30,30));
-        p.setTextSize(RH*0.10f);
+        p.setColor(RED2);
+        p.setTextSize(SH*0.050f);
         p.setFakeBoldText(true);
-        c.drawText("CREAR SALA",RW/2f,RH*0.12f,p);
+        c.drawText("CREAR SALA",SW/2,SH*0.075f,p);
         p.setFakeBoldText(false);
-
-        p.setColor(Color.rgb(80,80,80));
-        p.setTextSize(RH*0.042f);
-        c.drawText("Elige el modo de juego:",RW/2f,RH*0.20f,p);
+        p.setColor(WHITE2);
+        p.setTextSize(SH*0.020f);
+        c.drawText("elegí el modo de juego y esperá",
+            SW/2,SH*0.105f,p);
 
         for(int i=0;i<6;i++){
-            float by=RH*(0.25f+i*0.11f);
-            boolean sel=selectedMode==i;
-            int mc=MODE_COLORS[i];
-            p.setColor(sel?Color.argb(200,Color.red(mc),
-                Color.green(mc),Color.blue(mc)):
-                Color.argb(80,Color.red(mc),
-                Color.green(mc),Color.blue(mc)));
+            float by=SH*(0.130f+i*0.115f);
+            boolean sel=(selectedMode==i);
+            android.graphics.RectF btn=
+                new android.graphics.RectF(
+                SW*0.05f,by,SW*0.95f,by+SH*0.100f);
+            p.setColor(sel?modeColors[i]:
+                Color.argb(60,
+                    Color.red(modeColors[i]),
+                    Color.green(modeColors[i]),
+                    Color.blue(modeColors[i])));
             p.setStyle(Paint.Style.FILL);
-            c.drawRect(RW*0.05f,by,RW*0.95f,by+RH*0.09f,p);
-            if(sel){
-                p.setColor(Color.argb(255,Color.red(mc),
-                    Color.green(mc),Color.blue(mc)));
-                p.setStyle(Paint.Style.STROKE);
-                p.setStrokeWidth(2f);
-                c.drawRect(RW*0.05f,by,RW*0.95f,by+RH*0.09f,p);
-            }
+            c.drawRoundRect(btn,16,16,p);
+            p.setColor(sel?modeBorders[i]:
+                Color.argb(80,
+                    Color.red(modeBorders[i]),
+                    Color.green(modeBorders[i]),
+                    Color.blue(modeBorders[i])));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(sel?2.5f:1f);
+            c.drawRoundRect(btn,16,16,p);
             p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.WHITE);
-            p.setTextSize(RH*0.045f);
+            p.setTextSize(SH*0.038f);
+            p.setTextAlign(Paint.Align.LEFT);
+            p.setColor(Color.argb(sel?220:120,255,255,255));
+            c.drawText(modeIcons[i],SW*0.07f,by+SH*0.068f,p);
+            p.setColor(sel?WHITE:Color.argb(160,200,190,180));
+            p.setTextSize(SH*0.030f);
             p.setFakeBoldText(sel);
-            c.drawText(MODE_NAMES[i]+" — "+MODE_DESC[i],
-                RW/2f,by+RH*0.062f,p);
+            c.drawText(modeNames[i],SW*0.17f,by+SH*0.052f,p);
             p.setFakeBoldText(false);
+            p.setColor(Color.argb(sel?120:70,180,170,160));
+            p.setTextSize(SH*0.018f);
+            c.drawText(modeDescs[i],SW*0.17f,by+SH*0.076f,p);
+            if(sel){
+                p.setColor(GOLD);
+                p.setTextSize(SH*0.032f);
+                p.setTextAlign(Paint.Align.RIGHT);
+                c.drawText("✓",SW*0.93f,by+SH*0.062f,p);
+            }
         }
 
-        // Botón crear
-        p.setColor(Color.rgb(120,30,30));
+        android.graphics.RectF btnOk=
+            new android.graphics.RectF(
+            SW*0.10f,SH*0.835f,SW*0.90f,SH*0.905f);
+        p.setColor(modeColors[selectedMode]);
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(RW*0.15f,RH*0.92f,RW*0.85f,RH*0.99f,p);
-        p.setColor(Color.WHITE);
-        p.setTextSize(RH*0.050f);
+        c.drawRoundRect(btnOk,20,20,p);
+        p.setColor(modeBorders[selectedMode]);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(2f);
+        c.drawRoundRect(btnOk,20,20,p);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(WHITE);
+        p.setTextSize(SH*0.038f);
         p.setFakeBoldText(true);
-        c.drawText("CREAR",RW/2f,RH*0.97f,p);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("CREAR — "+modeNames[selectedMode],
+            SW/2,SH*0.878f,p);
         p.setFakeBoldText(false);
 
+        p.setColor(Color.argb(80,100,100,100));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRect(SW*0.3f,SH*0.925f,SW*0.7f,SH*0.978f,p);
+        p.setColor(WHITE2);
+        p.setTextSize(SH*0.022f);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("← volver",SW/2,SH*0.960f,p);
         flushFrameHD();
     }
 
     private void drawJoinScreen(){
+        int BG      = Color.rgb(8,  6,  10);
+        int BG2     = Color.rgb(15, 12, 18);
+        int RED     = Color.rgb(180,30, 30);
+        int RED2    = Color.rgb(220,60, 60);
+        int GOLD    = Color.rgb(200,160,60);
+        int DIM     = Color.argb(180,80,80,90);
+        int WHITE   = Color.rgb(230,225,220);
+        int WHITE2  = Color.argb(120,180,175,170);
         Canvas c=new Canvas(frameBmpHD);
         float SW=screenW, SH=screenH;
-        c.drawColor(Color.BLACK);
-        c.scale(SW/(float)RW, SH/(float)RH);
+        c.drawColor(BG);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
 
         p.setColor(Color.rgb(80,80,220));
-        p.setTextSize(RH*0.10f);
+        p.setTextSize(SH*0.10f);
         p.setFakeBoldText(true);
-        c.drawText("UNIRSE",RW/2f,RH*0.15f,p);
+        c.drawText("UNIRSE",SW/2f,SH*0.15f,p);
         p.setFakeBoldText(false);
 
         p.setColor(Color.rgb(140,140,140));
-        p.setTextSize(RH*0.048f);
-        c.drawText("Código de sala:",RW/2f,RH*0.30f,p);
+        p.setTextSize(SH*0.048f);
+        c.drawText("Código de sala:",SW/2f,SH*0.30f,p);
 
         // Campo código
         p.setColor(Color.argb(180,30,30,80));
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(RW*0.1f,RH*0.37f,RW*0.9f,RH*0.52f,p);
+        c.drawRect(SW*0.1f,SH*0.37f,SW*0.9f,SH*0.52f,p);
         p.setColor(Color.rgb(80,80,200));
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(2f);
-        c.drawRect(RW*0.1f,RH*0.37f,RW*0.9f,RH*0.52f,p);
+        c.drawRect(SW*0.1f,SH*0.37f,SW*0.9f,SH*0.52f,p);
         p.setStyle(Paint.Style.FILL);
         p.setColor(Color.WHITE);
-        p.setTextSize(RH*0.085f);
+        p.setTextSize(SH*0.085f);
         p.setFakeBoldText(true);
         c.drawText(roomCodeInput.isEmpty()?"----":roomCodeInput,
-            RW/2f,RH*0.48f,p);
+            SW/2f,SH*0.48f,p);
         p.setFakeBoldText(false);
 
         // Teclado numérico 3x4
         String[] keys={"1","2","3","4","5","6","7","8","9","⌫","0","✓"};
         for(int i=0;i<12;i++){
             int col=i%3, row=i/3;
-            float kx=RW*(0.05f+col*0.32f);
-            float ky=RH*(0.56f+row*0.11f);
-            float kw=RW*0.28f, kh=RH*0.09f;
+            float kx=SW*(0.05f+col*0.32f);
+            float ky=SH*(0.56f+row*0.11f);
+            float kw=SW*0.28f, kh=SH*0.09f;
             boolean isConfirm=i==11;
             boolean isDelete=i==9;
             p.setColor(isConfirm?Color.rgb(30,100,30):
@@ -697,7 +918,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             c.drawRect(kx,ky,kx+kw,ky+kh,p);
             p.setStyle(Paint.Style.FILL);
             p.setColor(Color.WHITE);
-            p.setTextSize(RH*0.055f);
+            p.setTextSize(SH*0.055f);
             p.setFakeBoldText(true);
             c.drawText(keys[i],kx+kw/2,ky+kh*0.70f,p);
             p.setFakeBoldText(false);
@@ -706,23 +927,42 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void drawWaitingScreen(){
-        Canvas c = new Canvas(frameBmpHD);
-        c.drawColor(Color.BLACK);
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        float SW = screenW, SH = screenH;
+        int BG      = Color.rgb(8,  6,  10);
+        int BG2     = Color.rgb(15, 12, 18);
+        int RED     = Color.rgb(180,30, 30);
+        int RED2    = Color.rgb(220,60, 60);
+        int GOLD    = Color.rgb(200,160,60);
+        int DIM     = Color.argb(180,80,80,90);
+        int WHITE   = Color.rgb(230,225,220);
+        int WHITE2  = Color.argb(120,180,175,170);
+        float SW=screenW, SH=screenH;
+        Canvas c=new Canvas(frameBmpHD);
+        c.drawColor(BG);
+        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        String[] modeNames={"Asesino","Infección",
+            "FFA","Detective","Apagón","Zona"};
+        int[] modeColors={Color.rgb(140,25,25),Color.rgb(30,100,20),
+            Color.rgb(140,110,20),Color.rgb(20,50,120),
+            Color.rgb(60,15,100),Color.rgb(120,55,15)};
+        int[] modeBorders={Color.rgb(200,50,50),Color.rgb(60,180,50),
+            Color.rgb(200,160,30),Color.rgb(50,90,200),
+            Color.rgb(100,40,160),Color.rgb(180,90,30)};
 
         p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(Color.rgb(180,30,30));
-        p.setTextSize(SH*0.06f);
+        p.setColor(RED2);
+        p.setTextSize(SH*0.042f);
         p.setFakeBoldText(true);
-        c.drawText("DUNGEON",SW/2,SH*0.06f,p);
+        c.drawText("DUNGEON",SW/2,SH*0.055f,p);
         p.setFakeBoldText(false);
 
-        p.setColor(Color.rgb(80,80,80));
-        p.setTextSize(SH*0.022f);
-        c.drawText("SALA: "+currentRoomId,SW/2,SH*0.10f,p);
+        p.setColor(Color.argb(120,150,140,130));
+        p.setTextSize(SH*0.018f);
+        c.drawText("SALA "+currentRoomId+" · "+
+            modeNames[Math.min(gameMode,5)],
+            SW/2,SH*0.082f,p);
 
-        float circleY = SH*0.17f;
+        float circleY = SH*0.14f;
         if(netClient!=null){
             List<NetClient.RemotePlayer> rps =
                 new ArrayList<>(netClient.remotePlayers);
@@ -751,123 +991,164 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             }
         }
 
-        p.setColor(Color.rgb(80,180,80));
-        p.setTextSize(SH*0.038f);
+        p.setColor(Color.rgb(60,180,80));
+        p.setTextSize(SH*0.048f);
         p.setFakeBoldText(true);
         p.setTextAlign(Paint.Align.CENTER);
         c.drawText(readyCount+"/"+
             (netClient!=null?
             netClient.remotePlayers.size():0)+
-            " listos",SW/2,SH*0.28f,p);
+            " listos",SW/2,SH*0.280f,p);
         p.setFakeBoldText(false);
 
-        p.setColor(Color.rgb(80,80,80));
-        p.setTextSize(SH*0.020f);
-        c.drawText("Votar modo:",SW/2,SH*0.33f,p);
+        p.setColor(Color.argb(100,150,140,130));
+        p.setTextSize(SH*0.018f);
+        c.drawText("votar modo:",SW/2,SH*0.310f,p);
 
-        String[] modeNames={"Asesino","Infección",
-            "FFA","Detective","Apagón","Zona"};
-        int[] modeColors={0xFFCC2222,0xFF44BB22,
-            0xFFCCAA11,0xFF2266CC,0xFF441188,0xFFCC6611};
-
+        float vBtnW=(SW-SW*0.12f)/3f;
+        float vBtnH=SH*0.070f;
+        float vStartY=SH*0.325f;
         for(int i=0;i<6;i++){
-            int col=i%2, row=i/3;
-            float bx=SW*(col==0?0.04f:0.52f);
-            float by=SH*(0.36f+row*0.075f);
-            float bw=SW*0.44f, bh=SH*0.062f;
-            boolean selected=(myVotedMode==i&&iAmReady);
+            int col=i%3, row=i/3;
+            float bx=SW*0.06f+col*(vBtnW+SW*0.010f);
+            float by=vStartY+row*(vBtnH+SH*0.008f);
+            boolean selected=(myVotedMode==i && iAmReady);
             int mc=modeColors[i];
-            p.setColor(selected ?
-                Color.argb(220,Color.red(mc),
-                    Color.green(mc),Color.blue(mc)):
-                Color.argb(80,Color.red(mc),
+            p.setColor(selected?Color.argb(200,
+                Color.red(mc),Color.green(mc),
+                Color.blue(mc)):
+                Color.argb(70,Color.red(mc),
                     Color.green(mc),Color.blue(mc)));
             p.setStyle(Paint.Style.FILL);
-            c.drawRect(bx,by,bx+bw,by+bh,p);
-            if(selected){
-                p.setColor(Color.argb(255,
-                    Color.red(mc),Color.green(mc),
-                    Color.blue(mc)));
-                p.setStyle(Paint.Style.STROKE);
-                p.setStrokeWidth(3f);
-                c.drawRect(bx,by,bx+bw,by+bh,p);
-            }
+            android.graphics.RectF vb=
+                new android.graphics.RectF(
+                bx,by,bx+vBtnW,by+vBtnH);
+            c.drawRoundRect(vb,10,10,p);
+            p.setColor(selected?Color.argb(255,
+                Color.red(modeBorders[i]),
+                Color.green(modeBorders[i]),
+                Color.blue(modeBorders[i])):
+                Color.argb(60,
+                Color.red(modeBorders[i]),
+                Color.green(modeBorders[i]),
+                Color.blue(modeBorders[i])));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(selected?2f:1f);
+            c.drawRoundRect(vb,10,10,p);
             p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.WHITE);
-            p.setTextSize(SH*0.022f);
+            p.setColor(selected?WHITE:Color.argb(160,200,190,180));
+            p.setTextSize(vBtnH*0.28f);
             p.setFakeBoldText(selected);
-            p.setTextAlign(Paint.Align.LEFT);
-            c.drawText(modeNames[i],bx+bw*0.06f,
-                by+bh*0.52f,p);
+            p.setTextAlign(Paint.Align.CENTER);
+            c.drawText(modeNames[i],bx+vBtnW/2,
+                by+vBtnH*0.52f,p);
             p.setFakeBoldText(false);
             if(modeVotes!=null && i<modeVotes.length
                     && modeVotes[i]>0){
-                p.setColor(Color.argb(200,255,220,0));
-                p.setTextSize(SH*0.020f);
-                p.setTextAlign(Paint.Align.RIGHT);
-                c.drawText(modeVotes[i]+"v",
-                    bx+bw*0.94f,by+bh*0.52f,p);
+                p.setColor(GOLD);
+                p.setTextSize(vBtnH*0.26f);
+                c.drawText(modeVotes[i]+"✓",
+                    bx+vBtnW/2,by+vBtnH*0.80f,p);
             }
         }
 
+        float listoY=SH*0.535f;
         if(!iAmReady){
-            p.setColor(Color.rgb(30,120,30));
+            android.graphics.RectF bListo=
+                new android.graphics.RectF(
+                SW*0.08f,listoY,SW*0.92f,listoY+SH*0.075f);
+            p.setColor(Color.rgb(20,110,30));
             p.setStyle(Paint.Style.FILL);
-            c.drawRect(SW*0.1f,SH*0.62f,
-                SW*0.9f,SH*0.70f,p);
+            c.drawRoundRect(bListo,18,18,p);
+            p.setColor(Color.rgb(50,200,70));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(2f);
+            c.drawRoundRect(bListo,18,18,p);
+            p.setStyle(Paint.Style.FILL);
             p.setColor(Color.WHITE);
-            p.setTextSize(SH*0.040f);
+            p.setTextSize(SH*0.036f);
             p.setFakeBoldText(true);
             p.setTextAlign(Paint.Align.CENTER);
-            c.drawText("¡LISTO!",SW/2,SH*0.675f,p);
+            c.drawText("¡LISTO!",SW/2,
+                listoY+SH*0.050f,p);
             p.setFakeBoldText(false);
         } else {
-            p.setColor(Color.argb(150,50,150,50));
+            android.graphics.RectF bEsp=
+                new android.graphics.RectF(
+                SW*0.08f,listoY,SW*0.92f,listoY+SH*0.075f);
+            p.setColor(Color.argb(60,30,100,40));
             p.setStyle(Paint.Style.FILL);
-            c.drawRect(SW*0.1f,SH*0.62f,
-                SW*0.9f,SH*0.70f,p);
-            p.setColor(Color.argb(200,150,255,150));
-            p.setTextSize(SH*0.032f);
+            c.drawRoundRect(bEsp,18,18,p);
+            p.setColor(Color.argb(120,50,160,70));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.5f);
+            c.drawRoundRect(bEsp,18,18,p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(180,100,200,120));
+            p.setTextSize(SH*0.026f);
             p.setTextAlign(Paint.Align.CENTER);
             int dots=(int)(frameCount/15)%4;
-            c.drawText("Esperando"+
-                ".".repeat(dots),SW/2,SH*0.675f,p);
+            c.drawText("esperando otros jugadores"+
+                ".".repeat(dots),SW/2,
+                listoY+SH*0.048f,p);
         }
 
-        p.setColor(Color.rgb(60,60,60));
-        p.setTextSize(SH*0.018f);
+        float sensY=listoY+SH*0.092f;
+        p.setColor(Color.argb(80,150,140,130));
+        p.setTextSize(SH*0.016f);
         p.setTextAlign(Paint.Align.LEFT);
-        c.drawText("Sensibilidad cámara:",
-            SW*0.05f,SH*0.76f,p);
-        float barX=SW*0.05f, barY=SH*0.78f;
-        float barW=SW*0.90f, barH=SH*0.022f;
-        p.setColor(Color.rgb(40,40,40));
+        c.drawText("SENSIBILIDAD CÁMARA",
+            SW*0.06f,sensY,p);
+        float barX=SW*0.06f,barY=sensY+SH*0.012f;
+        float barW=SW*0.88f,barH=SH*0.018f;
+        p.setColor(Color.argb(60,40,40,60));
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(barX,barY,barX+barW,barY+barH,p);
-        float sensPos=(camSensitivity-0.02f)/(0.15f-0.02f);
-        p.setColor(Color.rgb(100,100,180));
-        c.drawRect(barX,barY,
-            barX+barW*sensPos,barY+barH,p);
-        p.setColor(Color.rgb(150,150,220));
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(1.5f);
-        c.drawRect(barX,barY,barX+barW,barY+barH,p);
-        p.setStyle(Paint.Style.FILL);
+        android.graphics.RectF barBg=
+            new android.graphics.RectF(
+            barX,barY,barX+barW,barY+barH);
+        c.drawRoundRect(barBg,barH/2,barH/2,p);
+        float sPos=(camSensitivity-0.02f)/(0.15f-0.02f);
+        p.setColor(Color.rgb(80,80,160));
+        android.graphics.RectF barFg=
+            new android.graphics.RectF(
+            barX,barY,barX+barW*sPos,barY+barH);
+        c.drawRoundRect(barFg,barH/2,barH/2,p);
+        p.setColor(Color.rgb(140,140,220));
+        c.drawCircle(barX+barW*sPos,
+            barY+barH/2,barH*1.2f,p);
 
-        p.setColor(Color.argb(100,80,80,80));
+        float backY=listoY+SH*0.150f;
+        p.setColor(Color.argb(60,80,80,80));
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(SW*0.3f,SH*0.84f,SW*0.7f,SH*0.91f,p);
-        p.setColor(Color.argb(160,180,180,180));
-        p.setTextSize(SH*0.026f);
+        android.graphics.RectF bBack=
+            new android.graphics.RectF(
+            SW*0.3f,backY,SW*0.7f,backY+SH*0.050f);
+        c.drawRoundRect(bBack,12,12,p);
+        p.setColor(Color.argb(120,160,150,140));
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(1f);
+        c.drawRoundRect(bBack,12,12,p);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.argb(160,180,170,160));
+        p.setTextSize(SH*0.020f);
         p.setTextAlign(Paint.Align.CENTER);
-        c.drawText("← Volver",SW/2,SH*0.88f,p);
+        c.drawText("← volver al menú",SW/2,
+            backY+SH*0.033f,p);
 
         flushFrameHD();
     }
 
     private void drawEndScreen(){
+        int BG      = Color.rgb(8,  6,  10);
+        int BG2     = Color.rgb(15, 12, 18);
+        int RED     = Color.rgb(180,30, 30);
+        int RED2    = Color.rgb(220,60, 60);
+        int GOLD    = Color.rgb(200,160,60);
+        int DIM     = Color.argb(180,80,80,90);
+        int WHITE   = Color.rgb(230,225,220);
+        int WHITE2  = Color.argb(120,180,175,170);
         Canvas c = new Canvas(frameBmpHD);
-        c.drawColor(Color.BLACK);
+        c.drawColor(BG);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         float SW=screenW, SH=screenH;
         p.setTextAlign(Paint.Align.CENTER);
@@ -946,7 +1227,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             }
         }
 
-        p.setColor(Color.rgb(60,60,60));
+        p.setColor(WHITE2);
         p.setTextSize(SH*0.022f);
         p.setTextAlign(Paint.Align.CENTER);
         c.drawText("Volviendo a la sala...",
@@ -1078,30 +1359,34 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         float rx = screenX;
         float ry = screenY;
 
-        float kbTop = screenH * 0.34f;
-        float kbH   = screenH * 0.56f;
+        float kbTop = screenH * 0.44f;
+        float kbH   = screenH * 0.44f;
         float keyH  = kbH / 4.2f;
 
         if (ry < kbTop) return;
 
         if (ry >= kbTop && ry < kbTop + keyH) {
-            int col = (int)(rx / (screenW/10f));
+            float kw1=screenW/10.5f;
+            float off1=(screenW-ROW1.length*kw1)/2f;
+            int col = (int)((rx-off1) / kw1);
             if (col >= 0 && col < ROW1.length && playerName.length() < 10)
                 playerName += ROW1[col];
             return;
         }
 
         if (ry >= kbTop + keyH*1.1f && ry < kbTop + keyH*1.95f) {
-            float offX2 = (screenW - 9*(screenW/10f)) / 2f;
-            int col2 = (int)((rx - offX2) / (screenW/10f));
+            float kw2=screenW/10.2f;
+            float offX2 = (screenW - ROW2.length*kw2) / 2f;
+            int col2 = (int)((rx - offX2) / kw2);
             if (col2 >= 0 && col2 < ROW2.length && playerName.length() < 10)
                 playerName += ROW2[col2];
             return;
         }
 
-        if (ry >= kbTop + keyH*2.2f && ry < kbTop + keyH*3.05f) {
-            float offX3 = (screenW - 8*(screenW/9f)) / 2f;
-            int col3 = (int)((rx - offX3) / (screenW/9f));
+        if (ry >= kbTop + keyH*2.15f && ry < kbTop + keyH*3.00f) {
+            float kw3=screenW/9.2f;
+            float offX3 = (screenW - ROW3.length*kw3) / 2f;
+            int col3 = (int)((rx - offX3) / kw3);
             if (col3 >= 0 && col3 < ROW3.length) {
                 if ("⌫".equals(ROW3[col3])) {
                     if (!playerName.isEmpty())
@@ -1113,8 +1398,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             return;
         }
 
-        float btnY = screenH * 0.92f;
-        if (ry > btnY && !playerName.isEmpty()) {
+        float btnY = kbTop + keyH*3.25f;
+        float btnH = keyH*0.90f;
+        if (ry > btnY && ry < btnY+btnH && !playerName.isEmpty()) {
             if(prefs!=null){
                 prefs.edit().putString(
                     "player_name",playerName).apply();
@@ -1132,20 +1418,26 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 handleNameKeyboard(ex, ey, sw, sh);
                 break;
             case MENU:
-                if(ry2>sh*0.21f&&ry2<sh*0.33f){
+                if(ry2>sh*0.175f&&ry2<sh*0.245f){
+                    state=GameState.NAME_INPUT;
+                } else if(ry2>sh*0.275f&&ry2<sh*0.365f){
                     state=GameState.CREATING; selectedMode=0;
-                } else if(ry2>sh*0.36f&&ry2<sh*0.48f){
+                } else if(ry2>sh*0.380f&&ry2<sh*0.465f){
                     state=GameState.JOINING; roomCodeInput="";
                 } else {
+                    float startY=screenH*0.505f;
+                    float btnH2=screenH*0.088f;
+                    float gapY=screenH*0.010f;
+                    float btnW=(screenW-screenW*0.18f)/2f;
+                    float gapX=screenW*0.06f;
                     for(int i=0;i<6;i++){
                         int col=i%2,row=i/2;
-                        float bx=sw*(col==0?0.05f:0.52f);
-                        float by=sh*(0.60f+row*0.13f);
-                        float bw=sw*0.43f,bh=sh*0.11f;
-                        if(rx2>=bx&&rx2<=bx+bw&&ry2>=by&&ry2<=by+bh){
-                            String[] quickRooms={"0000","0001","0002",
+                        float bx=gapX+col*(btnW+screenW*0.06f);
+                        float by=startY+row*(btnH2+gapY);
+                        if(rx2>=bx&&rx2<=bx+btnW&&ry2>=by&&ry2<=by+btnH2){
+                            String[] rooms={"0000","0001","0002",
                                 "0003","0004","0005"};
-                            connectToRoom(quickRooms[i]);
+                            connectToRoom(rooms[i]);
                             return;
                         }
                     }
@@ -1153,15 +1445,20 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 break;
             case CREATING:
                 for(int i=0;i<6;i++){
-                    float by=sh*(0.25f+i*0.11f);
-                    if(ry2>by&&ry2<by+sh*0.09f){
+                    float by=sh*(0.130f+i*0.115f);
+                    if(rx2>sw*0.05f&&rx2<sw*0.95f
+                            &&ry2>by&&ry2<by+sh*0.100f){
                         selectedMode=i; return;
                     }
                 }
-                if(ry2>sh*0.92f){
+                if(rx2>sw*0.10f&&rx2<sw*0.90f
+                        &&ry2>sh*0.835f&&ry2<sh*0.905f){
                     String[] rooms={"0000","0001","0002",
                         "0003","0004","0005"};
                     connectToRoom(rooms[selectedMode]);
+                } else if(rx2>sw*0.3f&&rx2<sw*0.7f
+                        &&ry2>sh*0.925f&&ry2<sh*0.978f){
+                    state=GameState.MENU;
                 }
                 break;
             case JOINING:
@@ -1188,35 +1485,39 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 }
                 break;
             case WAITING:
+                float vBtnW=(screenW-screenW*0.12f)/3f;
+                float vBtnH=screenH*0.070f;
+                float vStartY=screenH*0.325f;
                 for(int i=0;i<6;i++){
-                    int col=i%2, row=i/3;
-                    float bx=screenW*(col==0?0.04f:0.52f);
-                    float by=screenH*(0.36f+row*0.075f);
-                    float bw=screenW*0.44f;
-                    float bh=screenH*0.062f;
-                    if(ex>=bx&&ex<=bx+bw&&ey>=by&&ey<=by+bh){
+                    int col=i%3, row=i/3;
+                    float bx=screenW*0.06f+col*(vBtnW+screenW*0.010f);
+                    float by=vStartY+row*(vBtnH+screenH*0.008f);
+                    if(ex>=bx&&ex<=bx+vBtnW&&ey>=by&&ey<=by+vBtnH){
                         myVotedMode=i;
                         return;
                     }
                 }
 
-                if(!iAmReady && ey>screenH*0.62f
-                        && ey<screenH*0.70f){
+                float listoY=screenH*0.535f;
+                if(!iAmReady && ey>listoY
+                        && ey<listoY+screenH*0.075f){
                     iAmReady=true;
                     if(netClient!=null)
                         netClient.sendReady(myVotedMode);
                     return;
                 }
 
-                if(ey>screenH*0.77f && ey<screenH*0.80f){
-                    float pos=(ex-screenW*0.05f)/
-                        (screenW*0.90f);
+                float sensY=listoY+screenH*0.092f;
+                if(ey>sensY+0.010f && ey<sensY+0.030f){
+                    float pos=(ex-screenW*0.06f)/
+                        (screenW*0.88f);
                     pos=Math.max(0,Math.min(1,pos));
                     camSensitivity=0.02f+pos*(0.15f-0.02f);
                     return;
                 }
 
-                if(ey>screenH*0.84f && ey<screenH*0.91f){
+                float backY=listoY+screenH*0.150f;
+                if(ey>backY && ey<backY+screenH*0.050f){
                     if(netClient!=null){
                         netClient.disconnect();
                         netClient=null;
