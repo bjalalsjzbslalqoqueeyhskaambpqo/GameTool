@@ -362,15 +362,82 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setTextSize(RH*0.055f);
         c.drawText(display,RW/2f,RH*0.53f,p);
 
-        // Botón continuar
-        if(!playerName.isEmpty()){
-            p.setColor(Color.rgb(120,30,30));
+        float kbTop = RH * 0.52f;
+        float kbH   = RH * 0.48f;
+        float keyH  = kbH / 4.2f;
+
+        p.setColor(Color.argb(220, 20, 20, 20));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRect(0, kbTop, RW, RH, p);
+
+        float keyW1 = RW / 10f;
+        for(int i=0; i<ROW1.length; i++){
+            float kx = i * keyW1;
+            float ky = kbTop + keyH*0.05f;
+            p.setColor(Color.rgb(45,45,45));
             p.setStyle(Paint.Style.FILL);
-            c.drawRect(RW*0.25f,RH*0.68f,RW*0.75f,RH*0.82f,p);
+            c.drawRect(kx+1, ky, kx+keyW1-1, ky+keyH*0.85f, p);
+            p.setColor(Color.rgb(90,90,90));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1f);
+            c.drawRect(kx+1, ky, kx+keyW1-1, ky+keyH*0.85f, p);
+            p.setStyle(Paint.Style.FILL);
             p.setColor(Color.WHITE);
-            p.setTextSize(RH*0.058f);
+            p.setTextSize(RH*0.045f);
+            c.drawText(ROW1[i], kx+keyW1/2f, ky+keyH*0.58f, p);
+        }
+
+        float keyW2 = RW / 10f;
+        float offX2 = (RW - ROW2.length * keyW2) / 2f;
+        for(int i=0; i<ROW2.length; i++){
+            float kx = offX2 + i * keyW2;
+            float ky = kbTop + keyH*1.1f;
+            p.setColor(Color.rgb(45,45,45));
+            p.setStyle(Paint.Style.FILL);
+            c.drawRect(kx+1, ky, kx+keyW2-1, ky+keyH*0.85f, p);
+            p.setColor(Color.rgb(90,90,90));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1f);
+            c.drawRect(kx+1, ky, kx+keyW2-1, ky+keyH*0.85f, p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.WHITE);
+            p.setTextSize(RH*0.045f);
+            c.drawText(ROW2[i], kx+keyW2/2f, ky+keyH*0.58f, p);
+        }
+
+        float keyW3 = RW / 9f;
+        float offX3 = (RW - ROW3.length * keyW3) / 2f;
+        for(int i=0; i<ROW3.length; i++){
+            float kx = offX3 + i * keyW3;
+            float ky = kbTop + keyH*2.2f;
+            boolean isDel = "⌫".equals(ROW3[i]);
+            p.setColor(isDel ? Color.rgb(100,35,35) : Color.rgb(45,45,45));
+            p.setStyle(Paint.Style.FILL);
+            c.drawRect(kx+1, ky, kx+keyW3-1, ky+keyH*0.85f, p);
+            p.setColor(isDel ? Color.rgb(180,70,70) : Color.rgb(90,90,90));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1f);
+            c.drawRect(kx+1, ky, kx+keyW3-1, ky+keyH*0.85f, p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.WHITE);
+            p.setTextSize(RH*0.045f);
+            c.drawText(ROW3[i], kx+keyW3/2f, ky+keyH*0.58f, p);
+        }
+
+        if(!playerName.isEmpty()){
+            float btnY = kbTop + keyH*3.3f;
+            p.setColor(Color.rgb(30,110,40));
+            p.setStyle(Paint.Style.FILL);
+            c.drawRect(RW*0.2f, btnY, RW*0.8f, btnY+keyH*0.85f, p);
+            p.setColor(Color.rgb(80,180,90));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.2f);
+            c.drawRect(RW*0.2f, btnY, RW*0.8f, btnY+keyH*0.85f, p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.WHITE);
+            p.setTextSize(RH*0.050f);
             p.setFakeBoldText(true);
-            c.drawText("CONTINUAR",RW/2f,RH*0.77f,p);
+            c.drawText(ROW4_OK, RW/2f, btnY+keyH*0.6f, p);
             p.setFakeBoldText(false);
         }
         flushFrame();
@@ -389,6 +456,13 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private static final int[] MODE_COLORS={
         0xFFCC2222,0xFF44BB22,0xFFCCAA11,
         0xFF2266CC,0xFF441188,0xFFCC6611};
+    private static final String[] ROW1 =
+        {"Q","W","E","R","T","Y","U","I","O","P"};
+    private static final String[] ROW2 =
+        {"A","S","D","F","G","H","J","K","L"};
+    private static final String[] ROW3 =
+        {"Z","X","C","V","B","N","M","⌫"};
+    private static final String ROW4_OK = "LISTO";
 
     private void drawMenuScreen(){
         Canvas c=new Canvas(frameBmp);
@@ -846,16 +920,60 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         }
     }
 
+    public void handleNameKeyboard(
+            float screenX, float screenY,
+            int screenW, int screenH) {
+        float rx = screenX * (RW / (float)screenW);
+        float ry = screenY * (RH / (float)screenH);
+
+        float kbTop = RH * 0.52f;
+        float kbH   = RH * 0.48f;
+        float keyH  = kbH / 4.2f;
+
+        if (ry < kbTop) return;
+
+        if (ry >= kbTop && ry < kbTop + keyH) {
+            int col = (int)(rx / (RW/10f));
+            if (col >= 0 && col < ROW1.length && playerName.length() < 10)
+                playerName += ROW1[col];
+            return;
+        }
+
+        if (ry >= kbTop + keyH*1.1f && ry < kbTop + keyH*1.95f) {
+            float offX2 = (RW - 9*(RW/10f)) / 2f;
+            int col2 = (int)((rx - offX2) / (RW/10f));
+            if (col2 >= 0 && col2 < ROW2.length && playerName.length() < 10)
+                playerName += ROW2[col2];
+            return;
+        }
+
+        if (ry >= kbTop + keyH*2.2f && ry < kbTop + keyH*3.05f) {
+            float offX3 = (RW - 8*(RW/9f)) / 2f;
+            int col3 = (int)((rx - offX3) / (RW/9f));
+            if (col3 >= 0 && col3 < ROW3.length) {
+                if ("⌫".equals(ROW3[col3])) {
+                    if (!playerName.isEmpty())
+                        playerName = playerName.substring(0, playerName.length()-1);
+                } else if (playerName.length() < 10) {
+                    playerName += ROW3[col3];
+                }
+            }
+            return;
+        }
+
+        float btnY = kbTop + keyH*3.3f;
+        if (ry > btnY && !playerName.isEmpty()) {
+            state = GameState.MENU;
+        }
+    }
+
     public void handleTouch(float ex,float ey,int sw,int sh){
         float rx2=ex*(RW/(float)sw);
         float ry2=ey*(RH/(float)sh);
 
         switch(state){
             case NAME_INPUT:
-                if(!playerName.isEmpty()&&
-                        ry2>RH*0.68f&&ry2<RH*0.82f){
-                    state=GameState.MENU;
-                }
+                handleNameKeyboard(ex, ey, sw, sh);
                 break;
             case MENU:
                 if(ry2>RH*0.21f&&ry2<RH*0.33f){
