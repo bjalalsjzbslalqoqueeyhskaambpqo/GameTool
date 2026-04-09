@@ -162,7 +162,13 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 gameMode=mode; amKiller=killer;
                 amInfected=inf; amDetective=det;
                 roomBusy=false;
-                myHp=100; state=GameState.PLAYING; statusMsg="";
+                myHp=100; state=GameState.PLAYING;
+                if(netClient!=null){
+                    player=new Player(
+                        netClient.spawnX,
+                        netClient.spawnY);
+                }
+                statusMsg="";
             }
             public void onHit(int hp){ myHp=hp; }
             public void onPlayerDied(int id, String killerName){

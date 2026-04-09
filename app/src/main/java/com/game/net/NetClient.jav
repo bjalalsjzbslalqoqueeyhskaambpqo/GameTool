@@ -62,6 +62,8 @@ public class NetClient {
     public volatile boolean spectator = false;
     public volatile int lastTimer = 0;
     public volatile boolean blackoutActive = false;
+    public volatile float spawnX = 72f;
+    public volatile float spawnY = 72f;
     public volatile long lastPingSent = 0;
     public final CopyOnWriteArrayList<RemotePlayer>
         remotePlayers = new CopyOnWriteArrayList<>();
@@ -142,6 +144,10 @@ public class NetClient {
                     break;
                 }
                 case "game_start":
+                    if(msg.has("spawn_x"))
+                        spawnX = msg.get("spawn_x").getAsFloat();
+                    if(msg.has("spawn_y"))
+                        spawnY = msg.get("spawn_y").getAsFloat();
                     listener.onGameStart(
                         msg.has("is_killer") &&
                             msg.get("is_killer").getAsBoolean(),
