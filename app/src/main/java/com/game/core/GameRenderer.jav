@@ -22,6 +22,27 @@ import javax.microedition.khronos.opengles.GL10;
 
 public class GameRenderer implements GLSurfaceView.Renderer {
 
+    private static class RemoteState {
+        float x, y, angle;
+        float renderX, renderY, renderAngle;
+        boolean initialized = false;
+
+        void updateTarget(float nx, float ny, float na) {
+            x = nx; y = ny; angle = na;
+            if (!initialized) {
+                renderX = nx; renderY = ny;
+                renderAngle = na;
+                initialized = true;
+            }
+        }
+
+        void interpolate(float factor) {
+            renderX     += (x - renderX)     * factor;
+            renderY     += (y - renderY)     * factor;
+            renderAngle += (angle - renderAngle) * factor;
+        }
+    }
+
     private static final int RW = 320;
     private static final int RH = 200;
 
@@ -60,12 +81,15 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private volatile int     minPlayers    = 2;
     private volatile boolean showAttackFX  = false;
     private volatile int     myHp          = 100;
-    private volatile boolean amKiller      = false;
+    public volatile boolean amKiller      = false;
     private volatile boolean isDead        = false;
     private volatile boolean showEndScreen = false;
     private volatile String  endMsg        = "";
     private volatile int     gameDuration  = 180;
     private long lastReconnect = 0;
+    private final java.util.concurrent.ConcurrentHashMap
+        <Integer, RemoteState> remoteStates =
+        new java.util.concurrent.ConcurrentHashMap<>();
 
     private static final String VERT =
         "attribute vec2 aPos;attribute vec2 aUV;varying vec2 vUV;" +
@@ -101,7 +125,16 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 gameDuration = dur;
                 statusMsg   = "";
             }
-            public void onState(List<NetClient.RemotePlayer> p) {}
+            public void onState(List<NetClient.RemotePlayer> list) {
+                for (NetClient.RemotePlayer rp : list) {
+                    RemoteState rs = remoteStates.get(rp.id);
+                    if (rs == null) {
+                        rs = new RemoteState();
+                        remoteStates.put(rp.id, rs);
+                    }
+                    rs.updateTarget(rp.x, rp.y, rp.angle);
+                }
+            }
             public void onHit(int newHp) {
                 myHp = newHp;
             }
@@ -191,13 +224,17 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         if (!showEndScreen) {
             raycaster.render(pixelBuf, player, frameCount);
+            float interpFactor = Math.min(1f, delta * 0.25f);
+            for (RemoteState rs : remoteStates.values())
+                rs.interpolate(interpFactor);
 
             List<float[]> sprites = new ArrayList<>();
             if (netClient != null) {
-                int myId = netClient.myId;
                 for (NetClient.RemotePlayer rp : netClient.remotePlayers) {
-                    if (rp.id == myId || rp.spectator) continue;
-                    sprites.add(new float[]{rp.x, rp.y});
+                    if (rp.id == netClient.myId || rp.spectator) continue;
+                    RemoteState rs = remoteStates.get(rp.id);
+                    if (rs != null && rs.initialized)
+                        sprites.add(new float[]{rs.renderX, rs.renderY});
                 }
             }
             if (!sprites.isEmpty())
@@ -269,12 +306,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         }
 
         // Botón ataque — indicador visual
-        hudP.setColor(Color.argb(60,200,50,50));
-        hudCanvas.drawRect(RW*0.7f, RH*0.6f, RW*0.98f, RH*0.95f, hudP);
-        hudP.setColor(Color.argb(120,255,255,255));
-        hudP.setTextSize(RH * 0.065f);
-        hudP.setTextAlign(Paint.Align.CENTER);
-        hudCanvas.drawText("ATK", RW*0.84f, RH*0.81f, hudP);
+        if (amKiller) {
+            hudP.setColor(Color.argb(60,200,50,50));
+            hudCanvas.drawRect(RW*0.7f, RH*0.6f, RW*0.98f, RH*0.95f, hudP);
+            hudP.setColor(Color.argb(120,255,255,255));
+            hudP.setTextSize(RH * 0.065f);
+            hudP.setTextAlign(Paint.Align.CENTER);
+            hudCanvas.drawText("ATK", RW*0.84f, RH*0.81f, hudP);
+        }
 
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
         drawQuad();

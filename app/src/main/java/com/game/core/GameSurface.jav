@@ -30,7 +30,7 @@ public class GameSurface extends GLSurfaceView {
                 float y = e.getY(idx);
                 float atkX = getWidth()  * 0.7f;
                 float atkY = getHeight() * 0.6f;
-                if (x >= atkX && y >= atkY) {
+                if (x >= atkX && y >= atkY && renderer.amKiller) {
                     renderer.attackPressed = true;
                     return true;
                 }
