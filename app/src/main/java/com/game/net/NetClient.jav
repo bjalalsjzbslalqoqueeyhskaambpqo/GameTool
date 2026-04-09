@@ -102,6 +102,10 @@ public class NetClient {
                     listener.onGameStart(isKiller, duration);
                     break;
                 case "state":
+                    if (msg.has("timer")) {
+                        int t = msg.get("timer").getAsInt();
+                        // pasar timer al listener si se agrega ese método
+                    }
                     JsonArray arr = msg.get("players").getAsJsonArray();
                     List<RemotePlayer> list = new ArrayList<>();
                     for (JsonElement el : arr) {

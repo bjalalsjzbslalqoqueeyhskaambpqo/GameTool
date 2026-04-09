@@ -102,7 +102,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 statusMsg   = "";
             }
             public void onState(List<NetClient.RemotePlayer> p) {}
-            public void onHit(int hp) { myHp = hp; }
+            public void onHit(int newHp) {
+                myHp = newHp;
+            }
             public void onPlayerDied(int id) {
                 if (netClient != null && id == netClient.myId) {
                     myHp = 0;
@@ -111,8 +113,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             }
             public void onGameEnd(boolean killerWon) {
                 gameStarted = false;
-                endMsg = killerWon ? "El asesino ganó" : "¡Sobreviviste!";
                 showEndScreen = true;
+                endMsg = killerWon ? "El asesino ganó" : "¡Sobreviviste!";
             }
             public void onDisconnected() {
                 gameStarted = false;
@@ -171,17 +173,12 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             }
         }
 
-        if (showEndScreen) {
-            drawEndScreen();
-            return;
-        }
-
-        if (!gameStarted) {
+        if (!gameStarted && !showEndScreen) {
             drawWaitingScreen();
             return;
         }
 
-        if (!isSpectator) {
+        if (!showEndScreen && !isSpectator) {
             update();
             if (attackPressed) {
                 netClient.sendAttack();
@@ -192,91 +189,93 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 netClient.sendInput(leftDX, leftDY, player.angle);
         }
 
-        raycaster.render(pixelBuf, player, frameCount);
+        if (!showEndScreen) {
+            raycaster.render(pixelBuf, player, frameCount);
 
-        List<float[]> sprites = new ArrayList<>();
-        if (netClient != null) {
-            int myId = netClient.myId;
-            for (NetClient.RemotePlayer rp : netClient.remotePlayers) {
-                if (rp.id == myId || rp.spectator) continue;
-                sprites.add(new float[]{rp.x, rp.y});
+            List<float[]> sprites = new ArrayList<>();
+            if (netClient != null) {
+                int myId = netClient.myId;
+                for (NetClient.RemotePlayer rp : netClient.remotePlayers) {
+                    if (rp.id == myId || rp.spectator) continue;
+                    sprites.add(new float[]{rp.x, rp.y});
+                }
+            }
+            if (!sprites.isEmpty())
+                raycaster.renderSprites(pixelBuf, player, sprites, frameCount);
+        } else {
+            for (int i = 0; i < pixelBuf.length; i++) {
+                pixelBuf[i] = Color.BLACK;
             }
         }
-        if (!sprites.isEmpty())
-            raycaster.renderSprites(pixelBuf, player, sprites, frameCount);
 
         frameBmp.setPixels(pixelBuf, 0, RW, 0, 0, RW, RH);
 
-        Canvas hud = new Canvas(frameBmp);
-        Paint  hp  = new Paint(Paint.ANTI_ALIAS_FLAG);
+        Canvas hudCanvas = new Canvas(frameBmp);
+        Paint  hudP  = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         // HP bar
-        hp.setColor(Color.argb(180, 0, 0, 0));
-        hud.drawRect(4, RH-14, 84, RH-4, hp);
+        hudP.setColor(Color.argb(180, 0, 0, 0));
+        hudCanvas.drawRect(4, RH-14, 84, RH-4, hudP);
         float hpPct = myHp / 100f;
-        hp.setColor(hpPct > 0.5f
+        hudP.setColor(hpPct > 0.5f
             ? Color.rgb(50,200,50)
             : hpPct > 0.25f
                 ? Color.rgb(200,150,0)
                 : Color.rgb(200,50,50));
-        hud.drawRect(5, RH-13, 5 + hpPct*78, RH-5, hp);
+        hudCanvas.drawRect(5, RH-13, 5 + hpPct*78, RH-5, hudP);
 
         // Contador jugadores
-        hp.setColor(Color.argb(200,200,80,80));
-        hp.setTextSize(RH * 0.07f);
+        hudP.setColor(Color.argb(200,200,80,80));
+        hudP.setTextSize(RH * 0.07f);
         int alive = 0;
         if (netClient != null)
             for (NetClient.RemotePlayer rp : netClient.remotePlayers)
                 if (!rp.spectator) alive++;
-        hud.drawText(alive + " vivos", RW*0.02f, RH*0.09f, hp);
+        hudCanvas.drawText(alive + " vivos", RW*0.02f, RH*0.09f, hudP);
         if (amKiller) {
-            hp.setColor(Color.argb(230, 220, 60, 60));
-            hp.setTextSize(RH * 0.07f);
-            hp.setTextAlign(Paint.Align.LEFT);
-            hud.drawText("ASESINO", RW * 0.02f, RH * 0.17f, hp);
+            hudP.setColor(Color.argb(220,200,30,30));
+            hudP.setTextSize(RH * 0.07f);
+            hudP.setTextAlign(Paint.Align.LEFT);
+            hudCanvas.drawText("⚔ ASESINO", RW*0.02f, RH*0.18f, hudP);
+        }
+        if (isDead) {
+            hudP.setColor(Color.argb(160,180,0,0));
+            hudCanvas.drawRect(0,0,RW,RH,hudP);
+            hudP.setColor(Color.WHITE);
+            hudP.setTextSize(RH*0.12f);
+            hudP.setTextAlign(Paint.Align.CENTER);
+            hudCanvas.drawText("HAS MUERTO", RW/2f, RH/2f, hudP);
+        }
+        if (showEndScreen) {
+            hudP.setColor(Color.argb(220,0,0,0));
+            hudCanvas.drawRect(0,0,RW,RH,hudP);
+            hudP.setColor(Color.WHITE);
+            hudP.setTextSize(RH*0.10f);
+            hudP.setTextAlign(Paint.Align.CENTER);
+            hudCanvas.drawText(endMsg, RW/2f, RH/2f, hudP);
         }
 
         // Crosshair
-        hp.setColor(Color.argb(150,255,255,255));
-        hp.setStrokeWidth(1);
-        hud.drawLine(RW/2f-6, RH/2f, RW/2f+6, RH/2f, hp);
-        hud.drawLine(RW/2f, RH/2f-6, RW/2f, RH/2f+6, hp);
+        hudP.setColor(Color.argb(150,255,255,255));
+        hudP.setStrokeWidth(1);
+        hudCanvas.drawLine(RW/2f-6, RH/2f, RW/2f+6, RH/2f, hudP);
+        hudCanvas.drawLine(RW/2f, RH/2f-6, RW/2f, RH/2f+6, hudP);
 
         // Flash de ataque
         if (showAttackFX) {
-            hp.setColor(Color.argb(60,255,50,50));
-            hud.drawRect(0, 0, RW, RH, hp);
+            hudP.setColor(Color.argb(60,255,50,50));
+            hudCanvas.drawRect(0, 0, RW, RH, hudP);
             showAttackFX = false;
-        }
-        if (isDead) {
-            hp.setColor(Color.argb(120, 180, 20, 20));
-            hud.drawRect(0, 0, RW, RH, hp);
-            hp.setColor(Color.argb(220, 255, 255, 255));
-            hp.setTextAlign(Paint.Align.CENTER);
-            hp.setTextSize(RH * 0.14f);
-            hud.drawText("HAS MUERTO", RW / 2f, RH * 0.54f, hp);
         }
 
         // Botón ataque — indicador visual
-        hp.setColor(Color.argb(60,200,50,50));
-        hud.drawRect(RW*0.7f, RH*0.6f, RW*0.98f, RH*0.95f, hp);
-        hp.setColor(Color.argb(120,255,255,255));
-        hp.setTextSize(RH * 0.065f);
-        hp.setTextAlign(Paint.Align.CENTER);
-        hud.drawText("ATK", RW*0.84f, RH*0.81f, hp);
+        hudP.setColor(Color.argb(60,200,50,50));
+        hudCanvas.drawRect(RW*0.7f, RH*0.6f, RW*0.98f, RH*0.95f, hudP);
+        hudP.setColor(Color.argb(120,255,255,255));
+        hudP.setTextSize(RH * 0.065f);
+        hudP.setTextAlign(Paint.Align.CENTER);
+        hudCanvas.drawText("ATK", RW*0.84f, RH*0.81f, hudP);
 
-        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
-        drawQuad();
-    }
-
-    private void drawEndScreen() {
-        Canvas c = new Canvas(frameBmp);
-        c.drawColor(Color.BLACK);
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(Color.rgb(220, 220, 220));
-        p.setTextSize(RH * 0.12f);
-        c.drawText(endMsg, RW / 2f, RH * 0.52f, p);
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
         drawQuad();
     }
