@@ -28,7 +28,11 @@ public class GameSurface extends GLSurfaceView {
             case MotionEvent.ACTION_POINTER_DOWN: {
                 float x = e.getX(idx);
                 float y = e.getY(idx);
-                if (renderer.amKiller &&
+                boolean canAttack =
+                    (renderer.gameMode==0 && renderer.amKiller) ||
+                    (renderer.gameMode==1 && renderer.amInfected) ||
+                    (renderer.gameMode==2);
+                if (canAttack &&
                     renderer.state == GameRenderer.GameState.PLAYING) {
                     float atkX = getWidth() * 0.72f;
                     float atkY = getHeight() * 0.62f;

@@ -25,7 +25,8 @@ public class NetClient {
         void onConnected();
         void onJoined(int myId, long seed, boolean spectator);
         void onRoomInfo(int count, int min, boolean started);
-        void onGameStart(boolean isKiller, int duration);
+        void onGameStart(boolean isKiller,
+            boolean isInfected, int mode, int duration);
         void onState(List<RemotePlayer> players);
         void onHit(int hp);
         void onPlayerDied(int id);
@@ -97,9 +98,14 @@ public class NetClient {
                         msg.get("game_started").getAsBoolean());
                     break;
                 case "game_start":
-                    boolean isKiller = msg.get("is_killer").getAsBoolean();
+                    boolean isKiller   = msg.get("is_killer").getAsBoolean();
+                    boolean isInfected = msg.has("is_infected") &&
+                        msg.get("is_infected").getAsBoolean();
+                    int mode     = msg.has("mode") ?
+                        msg.get("mode").getAsInt() : 0;
                     int duration = msg.get("duration").getAsInt();
-                    listener.onGameStart(isKiller, duration);
+                    listener.onGameStart(
+                        isKiller, isInfected, mode, duration);
                     break;
                 case "state":
                     if (msg.has("timer")) {

@@ -26,6 +26,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     public enum GameState {
         CONNECTING, WAITING, PLAYING, DEAD, END, SPECTATING
     }
+    private static final int MODE_KILLER    = 0;
+    private static final int MODE_INFECTION = 1;
+    private static final int MODE_FFA       = 2;
 
     private static class RemoteState {
         float x, y, angle;
@@ -88,6 +91,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     public volatile boolean amKiller      = false;
     private volatile String  endMsg        = "";
     private volatile int     gameDuration  = 180;
+    public volatile int gameMode   = MODE_KILLER;
+    public volatile boolean amInfected = false;
+    private volatile int myRole = 0;
+    // 0=normal 1=killer 2=infected
     private volatile int gameTimer = 0;
     private volatile boolean endKillerWon = false;
     private long lastReconnect = 0;
@@ -123,11 +130,17 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 playerCount = count;
                 minPlayers  = min;
             }
-            public void onGameStart(boolean isKiller, int dur) {
+            public void onGameStart(boolean isKiller,
+                    boolean isInfected, int mode, int duration) {
                 state = GameState.PLAYING;
-                amKiller = isKiller;
-                gameDuration = dur;
-                gameTimer = dur;
+                gameMode   = mode;
+                amKiller   = isKiller;
+                amInfected = isInfected;
+                gameDuration = duration;
+                gameTimer = duration;
+                if (isKiller) myRole = 1;
+                else if (isInfected) myRole = 2;
+                else myRole = 0;
                 statusMsg   = "";
             }
             public void onState(List<NetClient.RemotePlayer> list) {
@@ -167,6 +180,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private void resetToWaiting() {
         state       = GameState.WAITING;
         amKiller    = false;
+        amInfected  = false;
+        myRole      = 0;
         myHp        = 100;
         endMsg      = "";
         playerCount = 0;
@@ -245,8 +260,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         if (state == GameState.PLAYING) {
             gameTimer = gameDuration;
+            boolean canAttack = (gameMode==MODE_KILLER && amKiller)
+                || (gameMode==MODE_INFECTION && amInfected)
+                || (gameMode==MODE_FFA);
             update();
-            if (attackPressed) {
+            if (attackPressed && canAttack) {
                 netClient.sendAttack();
                 attackPressed = false;
                 showAttackFX  = true;
@@ -276,6 +294,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         Canvas hud = new Canvas(frameBmp);
         Paint hp = new Paint(Paint.ANTI_ALIAS_FLAG);
+        boolean canAttack = (gameMode==MODE_KILLER && amKiller)
+            || (gameMode==MODE_INFECTION && amInfected)
+            || (gameMode==MODE_FFA);
 
         if (gameTimer > 0) {
             int mins = gameTimer / 60;
@@ -305,14 +326,34 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         hp.setTextAlign(Paint.Align.LEFT);
         hud.drawText(myHp+"hp", 7, RH-6, hp);
 
-        if (amKiller) {
-            hp.setColor(Color.argb(200,200,30,30));
-            hp.setTextSize(RH * 0.062f);
+        String roleText = "";
+        int roleColor = Color.WHITE;
+        if (gameMode == MODE_KILLER && amKiller) {
+            roleText = "⚔ ASESINO";
+            roleColor = Color.rgb(220,40,40);
+        } else if (gameMode == MODE_KILLER && !amKiller) {
+            roleText = "SUPERVIVIENTE";
+            roleColor = Color.rgb(80,180,80);
+        } else if (gameMode == MODE_INFECTION && amInfected) {
+            roleText = "INFECTADO";
+            roleColor = Color.rgb(120,200,50);
+        } else if (gameMode == MODE_INFECTION && !amInfected) {
+            roleText = "SANO";
+            roleColor = Color.rgb(80,180,80);
+        } else if (gameMode == MODE_FFA) {
+            roleText = "TODOS vs TODOS";
+            roleColor = Color.rgb(200,150,50);
+        }
+        if (!roleText.isEmpty()) {
+            hp.setColor(roleColor);
+            hp.setTextSize(RH * 0.055f);
             hp.setFakeBoldText(true);
             hp.setTextAlign(Paint.Align.LEFT);
-            hud.drawText("ASESINO", RW*0.02f, RH*0.16f, hp);
+            hud.drawText(roleText, RW*0.02f, RH*0.16f, hp);
             hp.setFakeBoldText(false);
+        }
 
+        if (canAttack) {
             hp.setColor(Color.argb(70,200,40,40));
             hud.drawRect(RW*0.72f, RH*0.62f, RW*0.98f, RH*0.93f, hp);
             hp.setColor(Color.argb(140,255,80,80));
@@ -330,6 +371,16 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             hud.drawText("ATACAR", RW*0.85f, RH*0.90f, hp);
         }
 
+        if (amInfected) {
+            float pulse = (float)Math.sin(frameCount*0.08)*0.5f+0.5f;
+            int alpha = (int)(40 + pulse*40);
+            hp.setColor(Color.argb(alpha, 50, 200, 50));
+            hud.drawRect(0,0,RW,5,hp);
+            hud.drawRect(0,RH-5,RW,RH,hp);
+            hud.drawRect(0,0,5,RH,hp);
+            hud.drawRect(RW-5,0,RW,RH,hp);
+        }
+
         hp.setColor(Color.argb(100,255,255,255));
         hp.setStrokeWidth(1f);
         hud.drawLine(RW/2f-5, RH/2f, RW/2f+5, RH/2f, hp);
@@ -345,7 +396,15 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void update() {
-        float spd = 0.9f * delta;
+        float spd;
+        if (gameMode == MODE_KILLER && amKiller)
+            spd = 1.25f * delta;
+        else if (gameMode == MODE_INFECTION && amInfected)
+            spd = 1.15f * delta;
+        else if (gameMode == MODE_FFA)
+            spd = 1.0f * delta;
+        else
+            spd = 0.9f * delta;
         float a   = player.angle;
         float fx  = (float)Math.cos(a), fy = (float)Math.sin(a);
         float rx  = (float)Math.cos(a+Math.PI/2);
@@ -359,6 +418,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         boolean moving = Math.abs(jx)>0.05f || Math.abs(jy)>0.05f;
         Assets.updateSteps(moving);
+        if (gameMode == MODE_FFA && myHp > 0
+                && myHp < 100 && frameCount % 300 == 0)
+            myHp = Math.min(100, myHp + 1);
     }
 
     private void drawWaitingScreen() {
@@ -430,6 +492,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             c.drawText("La partida inicia automáticamente",
                 RW/2f, RH*0.84f, p);
         }
+        String modeLabel = gameMode==0 ? "Asesino" :
+            gameMode==1 ? "Infección" : "Todos vs Todos";
+        p.setColor(Color.rgb(100,100,100));
+        p.setTextSize(RH*0.04f);
+        c.drawText("Modo: " + modeLabel, RW/2f, RH*0.88f, p);
         flushFrame();
     }
 
@@ -438,33 +505,33 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         c.drawColor(Color.BLACK);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
-
-        if (endKillerWon) {
-            p.setColor(Color.argb(80, 150, 0, 0));
-            c.drawRect(0, 0, RW, RH, p);
-            p.setColor(Color.rgb(220, 40, 40));
-            p.setTextSize(RH * 0.10f);
-            p.setFakeBoldText(true);
-            c.drawText("EL ASESINO", RW/2f, RH*0.30f, p);
-            c.drawText("GANÓ", RW/2f, RH*0.44f, p);
-            p.setFakeBoldText(false);
-            p.setColor(Color.rgb(180, 80, 80));
-            p.setTextSize(RH * 0.048f);
-            c.drawText(amKiller ? "¡Eliminaste a todos!" :
-                "No lograste sobrevivir...", RW/2f, RH*0.60f, p);
+        String titulo;
+        String sub;
+        int color;
+        if (gameMode == MODE_KILLER) {
+            titulo = endKillerWon ? "EL ASESINO GANÓ" : "SOBREVIVIENTES GANAN";
+            sub = endKillerWon
+                ? (amKiller ? "¡Eliminaste a todos!" : "No lograste escapar...")
+                : (amKiller ? "No pudiste con todos..." : "¡Sobreviviste!");
+            color = endKillerWon ? Color.rgb(220,40,40) : Color.rgb(50,220,80);
+        } else if (gameMode == MODE_INFECTION) {
+            titulo = endKillerWon ? "LA INFECCIÓN SE EXTENDIÓ" : "LOS SANOS GANAN";
+            sub = amInfected ? "Infectaste a todos" : "Resististe la infección";
+            color = endKillerWon ? Color.rgb(120,200,50) : Color.rgb(80,180,180);
         } else {
-            p.setColor(Color.argb(80, 0, 100, 0));
-            c.drawRect(0, 0, RW, RH, p);
-            p.setColor(Color.rgb(50, 220, 80));
-            p.setTextSize(RH * 0.10f);
-            p.setFakeBoldText(true);
-            c.drawText("¡SOBREVIVISTE!", RW/2f, RH*0.35f, p);
-            p.setFakeBoldText(false);
-            p.setColor(Color.rgb(80, 180, 80));
-            p.setTextSize(RH * 0.048f);
-            c.drawText("El asesino no pudo con todos",
-                RW/2f, RH*0.55f, p);
+            titulo = "¡PARTIDA TERMINADA!";
+            sub = myHp > 0 ? "¡Sobreviviste!" : "Fuiste eliminado";
+            color = myHp > 0 ? Color.rgb(220,180,50) : Color.rgb(150,150,150);
         }
+        p.setColor(Color.argb(80, 0, 0, 0));
+        c.drawRect(0, 0, RW, RH, p);
+        p.setColor(color);
+        p.setTextSize(RH * 0.085f);
+        p.setFakeBoldText(true);
+        c.drawText(titulo, RW/2f, RH*0.38f, p);
+        p.setFakeBoldText(false);
+        p.setTextSize(RH * 0.048f);
+        c.drawText(sub, RW/2f, RH*0.58f, p);
 
         p.setColor(Color.rgb(80, 80, 80));
         p.setTextSize(RH * 0.038f);
