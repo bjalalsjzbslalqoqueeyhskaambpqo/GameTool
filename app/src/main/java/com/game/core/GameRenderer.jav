@@ -111,8 +111,13 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
     private static class RemoteState {
         float x,y,angle,rx,ry,ra;
+        long lastMoveAt=0;
         boolean init=false;
         void update(float nx,float ny,float na){
+            if(init){
+                float dx=nx-x,dy=ny-y;
+                if(dx*dx+dy*dy>9f) lastMoveAt=System.currentTimeMillis();
+            }
             x=nx;y=ny;angle=na;
             if(!init){rx=nx;ry=ny;ra=na;init=true;}
         }
@@ -276,6 +281,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         long now=System.nanoTime();
         delta=Math.min((now-prevTime)/16_666_667f,3f);
         prevTime=now; frameCount++;
+        if(state!=GameState.PLAYING)
+            Assets.updateTension(-1f,false);
 
         switch(state){
             case NAME_INPUT: drawNameScreen(); return;
@@ -347,15 +354,30 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         raycaster.render(pixelBuf,player,frameCount);
 
         List<float[]> sprites=new ArrayList<>();
+        float nearestDanger=-1f;
+        float nearestMoving=-1f;
         if(netClient!=null){
             int myId=netClient.myId;
             for(NetClient.RemotePlayer rp:netClient.remotePlayers){
                 if(rp.id==myId||rp.spectator||!rp.alive) continue;
                 RemoteState rs=remoteStates.get(rp.id);
-                if(rs!=null&&rs.init)
+                if(rs!=null&&rs.init){
                     sprites.add(new float[]{rs.rx,rs.ry});
+                    if(isThreat(rp)){
+                        float dx=rs.rx-player.x,dy=rs.ry-player.y;
+                        float d=(float)Math.sqrt(dx*dx+dy*dy);
+                        if(nearestDanger<0||d<nearestDanger)
+                            nearestDanger=d;
+                        if(System.currentTimeMillis()-rs.lastMoveAt<300){
+                            if(nearestMoving<0||d<nearestMoving)
+                                nearestMoving=d;
+                        }
+                    }
+                }
             }
         }
+        Assets.updateTension(nearestDanger,myHp>0);
+        if(nearestMoving>0) Assets.playRemoteStepCue(nearestMoving);
         if(!sprites.isEmpty())
             raycaster.renderSprites(pixelBuf,player,sprites,frameCount);
 
@@ -372,6 +394,17 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             ||(gameMode==MODE_BLACKOUT&&amKiller)
             ||(gameMode==MODE_DETECTIVE&&amKiller)
             ||(gameMode==MODE_SHRINK);
+    }
+
+    private boolean isThreat(NetClient.RemotePlayer rp){
+        if(rp==null||!rp.alive||rp.spectator) return false;
+        if(gameMode==2) return rp.team!=myTeam;
+        if(gameMode==0){
+            return amKiller?!rp.isKiller:rp.isKiller;
+        }
+        if(gameMode==1||gameMode==MODE_FFA||gameMode==MODE_SHRINK)
+            return true;
+        return true;
     }
 
     private void update(){

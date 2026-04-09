@@ -13,7 +13,10 @@ public class Assets {
     public static int texW = 64, texH = 64;
     private static MediaPlayer ambient;
     private static AudioTrack stepsTrack;
+    private static AudioTrack remoteStepTrack;
+    private static AudioTrack tensionTrack;
     private static boolean wasMoving = false;
+    private static long lastRemoteStepAt = 0;
 
     public static void load(Context ctx) {
         BitmapFactory.Options o = new BitmapFactory.Options();
@@ -139,6 +142,90 @@ public class Assets {
         if (stepsTrack != null) stepsTrack.pause();
     }
 
+    public static void playRemoteStepCue(float dist) {
+        if (dist < 0 || dist > 200f) return;
+        long now = System.currentTimeMillis();
+        if (now - lastRemoteStepAt < 160) return;
+        lastRemoteStepAt = now;
+        try {
+            if (remoteStepTrack == null) remoteStepTrack = buildRemoteStep();
+            float vol = 0.10f + (1f - (dist / 200f)) * 0.26f;
+            remoteStepTrack.setStereoVolume(vol, vol);
+            remoteStepTrack.stop();
+            remoteStepTrack.reloadStaticData();
+            remoteStepTrack.play();
+        } catch (Exception ignored) {}
+    }
+
+    public static void updateTension(float nearestDangerDist,
+            boolean active) {
+        if (!active || nearestDangerDist < 0 || nearestDangerDist > 260f) {
+            if (tensionTrack != null) {
+                try { tensionTrack.pause(); } catch (Exception ignored) {}
+            }
+            return;
+        }
+        try {
+            if (tensionTrack == null) tensionTrack = buildTensionLoop();
+            float t = 1f - Math.min(1f, nearestDangerDist / 260f);
+            float vol = 0.03f + t * 0.17f;
+            tensionTrack.setStereoVolume(vol, vol);
+            if (tensionTrack.getPlayState() != AudioTrack.PLAYSTATE_PLAYING)
+                tensionTrack.play();
+        } catch (Exception ignored) {}
+    }
+
+    private static AudioTrack buildRemoteStep() {
+        int rate = 22050;
+        int len = rate / 8;
+        short[] buf = new short[len];
+        java.util.Random r = new java.util.Random();
+        int hit = (int)(len * 0.30f);
+        for (int i = 0; i < len; i++) {
+            float t = (float)i / rate;
+            float env = i < hit
+                ? (float)i / hit
+                : (float)Math.exp(-(i-hit) * 12.0 / rate);
+            double thud = Math.sin(2*Math.PI*95*t) * 0.7;
+            double grit = (r.nextDouble()-0.5) * (i < hit ? 0.8 : 0.25);
+            buf[i] = (short)((thud + grit) * env
+                * Short.MAX_VALUE * 0.55);
+        }
+        AudioTrack t = new AudioTrack(
+            android.media.AudioManager.STREAM_MUSIC,
+            rate,
+            android.media.AudioFormat.CHANNEL_OUT_MONO,
+            android.media.AudioFormat.ENCODING_PCM_16BIT,
+            buf.length * 2,
+            AudioTrack.MODE_STATIC);
+        t.write(buf, 0, buf.length);
+        return t;
+    }
+
+    private static AudioTrack buildTensionLoop() {
+        int rate = 22050;
+        int len = (int)(rate * 1.2f);
+        short[] buf = new short[len];
+        for (int i = 0; i < len; i++) {
+            float t = (float)i / rate;
+            float beat = (float)Math.sin(2*Math.PI*1.6*t);
+            float env = beat > 0.80f ? (beat - 0.80f) / 0.20f : 0f;
+            double low = Math.sin(2*Math.PI*58*t) * env;
+            double rumble = Math.sin(2*Math.PI*31*t) * env * 0.5;
+            buf[i] = (short)((low + rumble) * Short.MAX_VALUE * 0.55);
+        }
+        AudioTrack t = new AudioTrack(
+            android.media.AudioManager.STREAM_MUSIC,
+            rate,
+            android.media.AudioFormat.CHANNEL_OUT_MONO,
+            android.media.AudioFormat.ENCODING_PCM_16BIT,
+            buf.length * 2,
+            AudioTrack.MODE_STATIC);
+        t.write(buf, 0, buf.length);
+        t.setLoopPoints(0, buf.length, -1);
+        return t;
+    }
+
     public static void pause()  {
         if (ambient != null && ambient.isPlaying()) ambient.pause();
     }
@@ -148,5 +235,11 @@ public class Assets {
     public static void release() {
         if (ambient != null) { ambient.release(); ambient = null; }
         if (stepsTrack != null) { stepsTrack.release(); stepsTrack = null; }
+        if (remoteStepTrack != null) {
+            remoteStepTrack.release(); remoteStepTrack = null;
+        }
+        if (tensionTrack != null) {
+            tensionTrack.release(); tensionTrack = null;
+        }
     }
 }
