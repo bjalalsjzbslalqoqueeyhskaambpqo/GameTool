@@ -722,91 +722,45 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         c.drawColor(BG);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        String[] modeNames={"Asesino","Infección",
-            "Free for All","Detective","Apagón","Zona"};
-        String[] modeIcons={"⚔","🦠","💀","🔍","💡","⬛"};
-        String[] modeDescs={
-            "1 asesino — todos los demás escapan",
-            "El infectado contagia a los sanos",
-            "Todos armados — último en pie gana",
-            "Detective rastrea al asesino",
-            "Las luces se apagan cada 30 segundos",
-            "La zona se cierra — sobrevivir o morir"};
-        int[] modeColors={
-            Color.rgb(140,25,25),
-            Color.rgb(30,100,20),
-            Color.rgb(140,110,20),
-            Color.rgb(20,50,120),
-            Color.rgb(60,15,100),
-            Color.rgb(120,55,15)};
-        int[] modeBorders={
-            Color.rgb(200,50,50),
-            Color.rgb(60,180,50),
-            Color.rgb(200,160,30),
-            Color.rgb(50,90,200),
-            Color.rgb(100,40,160),
-            Color.rgb(180,90,30)};
-
         p.setTextAlign(Paint.Align.CENTER);
         p.setColor(RED2);
-        p.setTextSize(SH*0.050f);
+        p.setTextSize(SH*0.060f);
         p.setFakeBoldText(true);
         c.drawText("CREAR SALA",SW/2,SH*0.075f,p);
         p.setFakeBoldText(false);
         p.setColor(WHITE2);
-        p.setTextSize(SH*0.020f);
-        c.drawText("elegí el modo de juego y esperá",
+        p.setTextSize(SH*0.024f);
+        c.drawText("creá la sala y voten el modo adentro",
             SW/2,SH*0.105f,p);
 
-        for(int i=0;i<6;i++){
-            float by=SH*(0.130f+i*0.115f);
-            boolean sel=(selectedMode==i);
-            android.graphics.RectF btn=
-                new android.graphics.RectF(
-                SW*0.05f,by,SW*0.95f,by+SH*0.100f);
-            p.setColor(sel?modeColors[i]:
-                Color.argb(60,
-                    Color.red(modeColors[i]),
-                    Color.green(modeColors[i]),
-                    Color.blue(modeColors[i])));
-            p.setStyle(Paint.Style.FILL);
-            c.drawRoundRect(btn,16,16,p);
-            p.setColor(sel?modeBorders[i]:
-                Color.argb(80,
-                    Color.red(modeBorders[i]),
-                    Color.green(modeBorders[i]),
-                    Color.blue(modeBorders[i])));
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(sel?2.5f:1f);
-            c.drawRoundRect(btn,16,16,p);
-            p.setStyle(Paint.Style.FILL);
-            p.setTextSize(SH*0.038f);
-            p.setTextAlign(Paint.Align.LEFT);
-            p.setColor(Color.argb(sel?220:120,255,255,255));
-            c.drawText(modeIcons[i],SW*0.07f,by+SH*0.068f,p);
-            p.setColor(sel?WHITE:Color.argb(160,200,190,180));
-            p.setTextSize(SH*0.030f);
-            p.setFakeBoldText(sel);
-            c.drawText(modeNames[i],SW*0.17f,by+SH*0.052f,p);
-            p.setFakeBoldText(false);
-            p.setColor(Color.argb(sel?120:70,180,170,160));
-            p.setTextSize(SH*0.018f);
-            c.drawText(modeDescs[i],SW*0.17f,by+SH*0.076f,p);
-            if(sel){
-                p.setColor(GOLD);
-                p.setTextSize(SH*0.032f);
-                p.setTextAlign(Paint.Align.RIGHT);
-                c.drawText("✓",SW*0.93f,by+SH*0.062f,p);
-            }
-        }
+        android.graphics.RectF info=
+            new android.graphics.RectF(
+            SW*0.08f,SH*0.24f,SW*0.92f,SH*0.56f);
+        p.setColor(BG2);
+        p.setStyle(Paint.Style.FILL);
+        c.drawRoundRect(info,20,20,p);
+        p.setColor(Color.argb(90,170,60,60));
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(2f);
+        c.drawRoundRect(info,20,20,p);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(WHITE);
+        p.setTextSize(SH*0.028f);
+        c.drawText("MODOS DISPONIBLES EN VOTACIÓN",
+            SW/2,SH*0.32f,p);
+        p.setColor(Color.argb(180,190,180,170));
+        p.setTextSize(SH*0.024f);
+        c.drawText("• Todos contra todos",SW/2,SH*0.39f,p);
+        c.drawText("• Uno contra todos",SW/2,SH*0.44f,p);
+        c.drawText("• Equipos",SW/2,SH*0.49f,p);
 
         android.graphics.RectF btnOk=
             new android.graphics.RectF(
-            SW*0.10f,SH*0.835f,SW*0.90f,SH*0.905f);
-        p.setColor(modeColors[selectedMode]);
+            SW*0.10f,SH*0.70f,SW*0.90f,SH*0.78f);
+        p.setColor(RED);
         p.setStyle(Paint.Style.FILL);
         c.drawRoundRect(btnOk,20,20,p);
-        p.setColor(modeBorders[selectedMode]);
+        p.setColor(Color.rgb(220,80,80));
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(2f);
         c.drawRoundRect(btnOk,20,20,p);
@@ -815,17 +769,17 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setTextSize(SH*0.038f);
         p.setFakeBoldText(true);
         p.setTextAlign(Paint.Align.CENTER);
-        c.drawText("CREAR — "+modeNames[selectedMode],
-            SW/2,SH*0.878f,p);
+        c.drawText("CREAR AHORA",
+            SW/2,SH*0.752f,p);
         p.setFakeBoldText(false);
 
         p.setColor(Color.argb(80,100,100,100));
         p.setStyle(Paint.Style.FILL);
-        c.drawRect(SW*0.3f,SH*0.925f,SW*0.7f,SH*0.978f,p);
+        c.drawRect(SW*0.3f,SH*0.84f,SW*0.7f,SH*0.90f,p);
         p.setColor(WHITE2);
         p.setTextSize(SH*0.022f);
         p.setTextAlign(Paint.Align.CENTER);
-        c.drawText("← volver",SW/2,SH*0.960f,p);
+        c.drawText("← volver",SW/2,SH*0.88f,p);
         flushFrameHD();
     }
 
@@ -910,8 +864,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         c.drawColor(BG);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        String[] modeNames={"Asesino","Infección",
-            "FFA","Detective","Apagón","Zona"};
+        String[] modeNames={
+            "Uno vs Todos","Todos vs Todos","Equipos"};
         if(state==GameState.SPECTATING||roomBusy){
             c.drawColor(Color.rgb(8,6,10));
             p.setTextAlign(Paint.Align.CENTER);
@@ -950,12 +904,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             flushFrameHD();
             return;
         }
-        int[] modeColors={Color.rgb(140,25,25),Color.rgb(30,100,20),
-            Color.rgb(140,110,20),Color.rgb(20,50,120),
-            Color.rgb(60,15,100),Color.rgb(120,55,15)};
-        int[] modeBorders={Color.rgb(200,50,50),Color.rgb(60,180,50),
-            Color.rgb(200,160,30),Color.rgb(50,90,200),
-            Color.rgb(100,40,160),Color.rgb(180,90,30)};
+        int[] modeColors={Color.rgb(140,25,25),Color.rgb(140,110,20),
+            Color.rgb(20,80,140)};
+        int[] modeBorders={Color.rgb(200,50,50),Color.rgb(200,160,30),
+            Color.rgb(50,140,220)};
 
         p.setTextAlign(Paint.Align.CENTER);
         p.setColor(RED2);
@@ -1013,11 +965,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setTextSize(SH*0.018f);
         c.drawText("votar modo:",SW/2,SH*0.310f,p);
 
-        float vBtnW=(SW-SW*0.12f)/3f;
+        float vBtnW=(SW-SW*0.10f)/3f;
         float vBtnH=SH*0.070f;
         float vStartY=SH*0.325f;
-        for(int i=0;i<6;i++){
-            int col=i%3, row=i/3;
+        for(int i=0;i<3;i++){
+            int col=i, row=0;
             float bx=SW*0.06f+col*(vBtnW+SW*0.010f);
             float by=vStartY+row*(vBtnH+SH*0.008f);
             boolean selected=(myVotedMode==i && iAmReady);
@@ -1051,7 +1003,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             c.drawText(modeNames[i],bx+vBtnW/2,
                 by+vBtnH*0.52f,p);
             p.setFakeBoldText(false);
-            if(modeVotes!=null && i<modeVotes.length
+            if(modeVotes!=null && i<Math.min(3,modeVotes.length)
                     && modeVotes[i]>0){
                 p.setColor(GOLD);
                 p.setTextSize(vBtnH*0.26f);
@@ -1507,20 +1459,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 }
                 break;
             case CREATING:
-                for(int i=0;i<6;i++){
-                    float by=sh*(0.130f+i*0.115f);
-                    if(rx2>sw*0.05f&&rx2<sw*0.95f
-                            &&ry2>by&&ry2<by+sh*0.100f){
-                        selectedMode=i; return;
-                    }
-                }
                 if(rx2>sw*0.10f&&rx2<sw*0.90f
-                        &&ry2>sh*0.835f&&ry2<sh*0.905f){
-                    String[] rooms={"0000","0001","0002",
-                        "0003","0004","0005"};
-                    connectToRoom(rooms[selectedMode]);
+                        &&ry2>sh*0.70f&&ry2<sh*0.78f){
+                    String room = String.format(
+                        java.util.Locale.US,"%04d",
+                        (int)(Math.random()*10000));
+                    connectToRoom(room);
                 } else if(rx2>sw*0.3f&&rx2<sw*0.7f
-                        &&ry2>sh*0.925f&&ry2<sh*0.978f){
+                        &&ry2>sh*0.84f&&ry2<sh*0.90f){
                     state=GameState.MENU;
                 }
                 break;
@@ -1582,11 +1528,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 }
                 break;
             case WAITING:
-                float vBtnW=(screenW-screenW*0.12f)/3f;
+                float vBtnW=(screenW-screenW*0.10f)/3f;
                 float vBtnH=screenH*0.070f;
                 float vStartY=screenH*0.325f;
-                for(int i=0;i<6;i++){
-                    int col=i%3, row=i/3;
+                for(int i=0;i<3;i++){
+                    int col=i, row=0;
                     float bx=screenW*0.06f+col*(vBtnW+screenW*0.010f);
                     float by=vStartY+row*(vBtnH+screenH*0.008f);
                     if(ex>=bx&&ex<=bx+vBtnW&&ey>=by&&ey<=by+vBtnH){
