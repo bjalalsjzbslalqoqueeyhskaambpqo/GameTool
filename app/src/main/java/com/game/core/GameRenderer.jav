@@ -149,42 +149,31 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             ?"Player"+(int)(Math.random()*900+100):playerName,
             new NetClient.Listener(){
             public void onConnected(){ statusMsg="Conectado"; }
-            public void onJoined(int id, boolean host, String room){
-                myId = id; amHost = host;
-                totalInRoom = Math.max(1, playerCount);
-                currentRoomId = room;
-                state = GameState.WAITING;
+            public void onJoined(int id,long seed,boolean spec,int mode){
+                myId=id;
+                if(seed!=0) Map.generate(seed);
+                gameMode=mode;
+                state=spec?GameState.SPECTATING:GameState.WAITING;
                 readyVotes.clear();
-                iAmReady = false;
-                statusMsg = host ? "Esperando jugadores..." :
-                    "Conectado a sala "+room;
+                iAmReady=false;
+                statusMsg="Esperando jugadores...";
+            }
+            public void onRoomInfo(int total,boolean started){
+                playerCount=total;
+                if(!started && state==GameState.END)
+                    resetToWaiting();
+                else if(!started && state!=GameState.PLAYING)
+                    state=GameState.WAITING;
             }
             public void onPlayerJoined(int id,String name,int total){
-                totalInRoom = total;
-                playerCount = total;
+                playerCount=total;
             }
-            public void onPlayerLeft(int id,String name,int total){
-                totalInRoom = total;
-                playerCount = total;
-                remoteStates.remove(id);
-                readyVotes.remove(id);
-                if(amHost) hostRecalcReady();
-            }
-            public void onYouAreHost(){
-                amHost = true;
-                statusMsg = "Eres el host ahora";
-            }
-            public void onGameStart(int mode, int team,
-                    boolean killer, float sx, float sy,
-                    int dur, long seed){
+            public void onGameStart(int mode, boolean killer, int team,
+                    float sx, float sy, int dur, long seed){
                 if(seed!=0) Map.generate(seed);
-                gameMode=mode; myTeam=team; amKiller=killer;
-                amInfected=false;
-                amDetective=false;
-                roomBusy=false;
+                gameMode=mode; amKiller=killer; myTeam=team;
                 myHp=100; state=GameState.PLAYING;
                 player=new Player(sx,sy);
-                statusMsg="";
             }
             public void onState(List<NetClient.RemotePlayer> list,
                     int timer){
@@ -195,14 +184,17 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                     rs.update(rp.x,rp.y,rp.angle);
                 }
             }
-            public void onHit(int hp, String killer){
-                myHp=hp;
-                if(myHp<=0){
-                    myHp=0; state=GameState.DEAD;
-                    lastKillerName=killer;
+            public void onHit(int targetId,int hp){
+                if(targetId==netClient.myId){
+                    myHp=hp;
+                    if(myHp<=0){ myHp=0; state=GameState.DEAD; }
                 }
             }
             public void onPlayerDied(int id, String killer){
+                if(id==netClient.myId){
+                    myHp=0; state=GameState.DEAD;
+                    lastKillerName=killer;
+                }
                 remoteStates.remove(id);
             }
             public void onGameEnd(boolean kw,
@@ -231,26 +223,6 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 roomBusy=true; roomBusyPlayers=pl; roomBusyMode=mode;
             }
             public void onPong(int ms){ pingMs=ms; }
-            public void onOtherPlayerReady(int id,int mode){
-                if(!amHost) return;
-                readyVotes.put(id,mode);
-                hostRecalcReady();
-            }
-            public void onRemotePlayerUpdated(int id,
-                    float x,float y,float angle,int hp,boolean alive){
-                if(id==-1) return;
-                RemoteState rs=remoteStates.computeIfAbsent(
-                    id,k->new RemoteState());
-                rs.update(x,y,angle);
-                if(netClient!=null){
-                    for(NetClient.RemotePlayer rp:netClient.remotePlayers){
-                        if(rp.id==id){
-                            rp.hp=hp; rp.alive=alive; break;
-                        }
-                    }
-                }
-                if(amHost) hostBroadcastState();
-            }
             public void onDisconnected(){
                 state=GameState.CONNECTING;
                 statusMsg="Reconectando...";
@@ -362,12 +334,22 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         update();
         if(attackPressed&&canAttack()){
-            if(netClient!=null) netClient.sendAttack("melee");
             attackPressed=false; showAttackFX=true;
+            if(netClient!=null){
+                int targetId=-1; float bestDist=96f;
+                for(NetClient.RemotePlayer rp:netClient.remotePlayers){
+                    if(!rp.alive||rp.spectator) continue;
+                    if(gameMode==2&&rp.team==myTeam) continue;
+                    if(gameMode==0&&rp.isKiller) continue;
+                    float dx=rp.x-player.x,dy=rp.y-player.y;
+                    float d=(float)Math.sqrt(dx*dx+dy*dy);
+                    if(d<bestDist){ bestDist=d; targetId=rp.id; }
+                }
+                if(targetId!=-1) netClient.sendHit(targetId,34);
+            }
         }
         if(netClient!=null)
-            netClient.sendInput(player.x, player.y,
-                player.angle, myHp, myHp>0);
+            netClient.sendMove(player.x,player.y,player.angle);
         if(System.currentTimeMillis()-lastPingTime>3000){
             lastPingTime=System.currentTimeMillis();
             if(netClient!=null) netClient.sendPing();
