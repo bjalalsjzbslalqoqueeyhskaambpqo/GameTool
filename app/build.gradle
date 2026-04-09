@@ -5,15 +5,44 @@ plugins {
 android {
     namespace 'com.game'
     compileSdk 33
+
+    signingConfigs {
+        release {
+            storeFile file("$rootDir/keystore/release.jks")
+            storePassword "DungeonReleaseStore2026!"
+            keyAlias "dungeon-release"
+            keyPassword "DungeonReleaseKey2026!"
+        }
+    }
+
     defaultConfig {
         applicationId "com.game.dungeon"
         minSdk 21
         targetSdk 33
         versionCode 1
         versionName "1.0"
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        }
+    }
+    splits {
+        abi {
+            enable true
+            reset()
+            include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            universalApk true
+        }
     }
     buildTypes {
         debug { debuggable true }
+        release {
+            debuggable false
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                'proguard-rules.pro'
+        }
     }
 }
 

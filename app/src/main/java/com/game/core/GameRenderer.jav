@@ -700,73 +700,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         c.drawText("ingresá el código de sala",
             SW/2,SH*0.452f,p);
 
-        p.setColor(Color.argb(50,150,150,150));
-        p.setStrokeWidth(1f);
-        c.drawLine(SW*0.06f,SH*0.485f,
-            SW*0.38f,SH*0.485f,p);
-        c.drawLine(SW*0.62f,SH*0.485f,
-            SW*0.94f,SH*0.485f,p);
-        p.setColor(Color.argb(100,120,110,100));
+        p.setColor(Color.argb(90,120,110,100));
         p.setTextSize(SH*0.018f);
         p.setTextAlign(Paint.Align.CENTER);
-        c.drawText("SALAS RÁPIDAS",SW/2,SH*0.490f,p);
-
-        String[] modeNames={"Asesino","Infección",
-            "Free for All","Detective","Apagón","Zona"};
-        String[] modeIcons={"⚔","🦠","💀","🔍","💡","⬛"};
-        int[] modeColors={
-            Color.rgb(140,25,25),
-            Color.rgb(30,100,20),
-            Color.rgb(140,110,20),
-            Color.rgb(20,50,120),
-            Color.rgb(60,15,100),
-            Color.rgb(120,55,15)};
-        int[] modeBorders={
-            Color.rgb(200,50,50),
-            Color.rgb(60,180,50),
-            Color.rgb(200,160,30),
-            Color.rgb(50,90,200),
-            Color.rgb(100,40,160),
-            Color.rgb(180,90,30)};
-
-        float btnW=(SW-SW*0.18f)/2f;
-        float btnH2=SH*0.088f;
-        float startY=SH*0.505f;
-        float gapX=SW*0.06f;
-        float gapY=SH*0.010f;
-
-        for(int i=0;i<6;i++){
-            int col=i%2, row=i/2;
-            float bx=gapX+col*(btnW+SW*0.06f);
-            float by=startY+row*(btnH2+gapY);
-            android.graphics.RectF btn=
-                new android.graphics.RectF(
-                bx,by,bx+btnW,by+btnH2);
-            p.setColor(modeColors[i]);
-            p.setStyle(Paint.Style.FILL);
-            c.drawRoundRect(btn,14,14,p);
-            p.setColor(modeBorders[i]);
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1.5f);
-            c.drawRoundRect(btn,14,14,p);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.argb(150,255,255,255));
-            p.setTextSize(btnH2*0.35f);
-            p.setTextAlign(Paint.Align.LEFT);
-            c.drawText(modeIcons[i],
-                bx+btnW*0.06f,by+btnH2*0.52f,p);
-            p.setColor(WHITE);
-            p.setTextSize(btnH2*0.30f);
-            p.setFakeBoldText(true);
-            p.setTextAlign(Paint.Align.LEFT);
-            c.drawText(modeNames[i],
-                bx+btnW*0.28f,by+btnH2*0.48f,p);
-            p.setFakeBoldText(false);
-            p.setColor(Color.argb(100,180,170,160));
-            p.setTextSize(btnH2*0.20f);
-            c.drawText("mín 2 jugadores",
-                bx+btnW*0.28f,by+btnH2*0.72f,p);
-        }
+        c.drawText("creá una sala o unite con código",
+            SW/2,SH*0.520f,p);
         flushFrameHD();
     }
 
@@ -916,7 +854,6 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setTextSize(SH*0.048f);
         c.drawText("Código de sala:",SW/2f,SH*0.30f,p);
 
-        // Campo código
         p.setColor(Color.argb(180,30,30,80));
         p.setStyle(Paint.Style.FILL);
         c.drawRect(SW*0.1f,SH*0.37f,SW*0.9f,SH*0.52f,p);
@@ -932,7 +869,6 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             SW/2f,SH*0.48f,p);
         p.setFakeBoldText(false);
 
-        // Teclado numérico 3x4
         String[] keys={"1","2","3","4","5","6","7","8","9","⌫","0","✓"};
         for(int i=0;i<12;i++){
             int col=i%3, row=i/3;
@@ -1067,10 +1003,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setTextSize(SH*0.048f);
         p.setFakeBoldText(true);
         p.setTextAlign(Paint.Align.CENTER);
+        int totalPlayers=Math.max(1,playerCount);
         c.drawText(readyCount+"/"+
-            (netClient!=null?
-            netClient.remotePlayers.size():0)+
-            " listos",SW/2,SH*0.280f,p);
+            totalPlayers+" listos",
+            SW/2,SH*0.280f,p);
         p.setFakeBoldText(false);
 
         p.setColor(Color.argb(100,150,140,130));
@@ -1165,31 +1101,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 listoY+SH*0.048f,p);
         }
 
-        float sensY=listoY+SH*0.092f;
-        p.setColor(Color.argb(80,150,140,130));
-        p.setTextSize(SH*0.016f);
-        p.setTextAlign(Paint.Align.LEFT);
-        c.drawText("SENSIBILIDAD CÁMARA",
-            SW*0.06f,sensY,p);
-        float barX=SW*0.06f,barY=sensY+SH*0.012f;
-        float barW=SW*0.88f,barH=SH*0.018f;
-        p.setColor(Color.argb(60,40,40,60));
-        p.setStyle(Paint.Style.FILL);
-        android.graphics.RectF barBg=
-            new android.graphics.RectF(
-            barX,barY,barX+barW,barY+barH);
-        c.drawRoundRect(barBg,barH/2,barH/2,p);
-        float sPos=(camSensitivity-0.02f)/(0.15f-0.02f);
-        p.setColor(Color.rgb(80,80,160));
-        android.graphics.RectF barFg=
-            new android.graphics.RectF(
-            barX,barY,barX+barW*sPos,barY+barH);
-        c.drawRoundRect(barFg,barH/2,barH/2,p);
-        p.setColor(Color.rgb(140,140,220));
-        c.drawCircle(barX+barW*sPos,
-            barY+barH/2,barH*1.2f,p);
-
-        float backY=listoY+SH*0.150f;
+        float backY=listoY+SH*0.100f;
         p.setColor(Color.argb(60,80,80,80));
         p.setStyle(Paint.Style.FILL);
         android.graphics.RectF bBack=
@@ -1592,23 +1504,6 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                     state=GameState.CREATING; selectedMode=0;
                 } else if(ry2>sh*0.380f&&ry2<sh*0.465f){
                     state=GameState.JOINING; roomCodeInput="";
-                } else {
-                    float startY=screenH*0.505f;
-                    float btnH2=screenH*0.088f;
-                    float gapY=screenH*0.010f;
-                    float btnW=(screenW-screenW*0.18f)/2f;
-                    float gapX=screenW*0.06f;
-                    for(int i=0;i<6;i++){
-                        int col=i%2,row=i/2;
-                        float bx=gapX+col*(btnW+screenW*0.06f);
-                        float by=startY+row*(btnH2+gapY);
-                        if(rx2>=bx&&rx2<=bx+btnW&&ry2>=by&&ry2<=by+btnH2){
-                            String[] rooms={"0000","0001","0002",
-                                "0003","0004","0005"};
-                            connectToRoom(rooms[i]);
-                            return;
-                        }
-                    }
                 }
                 break;
             case CREATING:
@@ -1709,16 +1604,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                     return;
                 }
 
-                float sensY=listoY+screenH*0.092f;
-                if(ey>sensY+0.010f && ey<sensY+0.030f){
-                    float pos=(ex-screenW*0.06f)/
-                        (screenW*0.88f);
-                    pos=Math.max(0,Math.min(1,pos));
-                    camSensitivity=0.02f+pos*(0.15f-0.02f);
-                    return;
-                }
-
-                float backY=listoY+screenH*0.150f;
+                float backY=listoY+screenH*0.100f;
                 if(ey>backY && ey<backY+screenH*0.050f){
                     if(netClient!=null){
                         netClient.disconnect();

@@ -39,10 +39,34 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Create release keystore
+        run: |
+          mkdir -p keystore
+          keytool -genkeypair -v \
+            -storetype JKS \
+            -keystore keystore/release.jks \
+            -storepass "DungeonReleaseStore2026!" \
+            -keypass "DungeonReleaseKey2026!" \
+            -alias dungeon-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -dname "CN=Dungeon Game, OU=Mobile, O=Dungeon Studio, L=Buenos Aires, ST=Buenos Aires, C=AR"
+
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon
+
+      - name: Build Release APK
+        run: gradle assembleRelease --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
           name: DungeonGame-debug
           path: app/build/outputs/apk/debug/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DungeonGame-release
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/*/release/*.apk
