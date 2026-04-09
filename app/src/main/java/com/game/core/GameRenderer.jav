@@ -328,6 +328,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             if(netClient!=null){
                 int targetId=-1; float bestDist=96f;
                 for(NetClient.RemotePlayer rp:netClient.remotePlayers){
+                    if(rp.id==netClient.myId) continue;
                     if(!rp.alive||rp.spectator) continue;
                     if(gameMode==2&&rp.team==myTeam) continue;
                     if(gameMode==0&&rp.isKiller) continue;
