@@ -8,6 +8,8 @@ import android.graphics.Paint;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
+import android.os.Handler;
+import android.os.Looper;
 import com.game.game.Map;
 import com.game.game.Player;
 import com.game.game.Raycaster;
@@ -21,6 +23,9 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 public class GameRenderer implements GLSurfaceView.Renderer {
+    public enum GameState {
+        CONNECTING, WAITING, PLAYING, DEAD, END, SPECTATING
+    }
 
     private static class RemoteState {
         float x, y, angle;
@@ -74,18 +79,17 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private float delta = 1f;
     private long  frameCount = 0;
 
-    private volatile boolean gameStarted   = false;
-    private volatile boolean isSpectator   = false;
+    public volatile GameState state = GameState.CONNECTING;
     private volatile String  statusMsg     = "Conectando...";
     private volatile int     playerCount   = 0;
     private volatile int     minPlayers    = 2;
     private volatile boolean showAttackFX  = false;
     private volatile int     myHp          = 100;
     public volatile boolean amKiller      = false;
-    private volatile boolean isDead        = false;
-    private volatile boolean showEndScreen = false;
     private volatile String  endMsg        = "";
     private volatile int     gameDuration  = 180;
+    private volatile int gameTimer = 0;
+    private volatile boolean endKillerWon = false;
     private long lastReconnect = 0;
     private final java.util.concurrent.ConcurrentHashMap
         <Integer, RemoteState> remoteStates =
@@ -106,23 +110,24 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         String name = "P" + (int)(Math.random()*900+100);
         netClient = new NetClient(name, new NetClient.Listener() {
             public void onConnected() {
-                statusMsg = "Conectado...";
+                state = GameState.CONNECTING;
+                statusMsg = "Conectando...";
             }
             public void onJoined(int id, long seed, boolean spec) {
                 Map.generate(seed);
                 player = new Player(Map.getSpawnX(), Map.getSpawnY());
-                isSpectator = spec;
+                state = spec ? GameState.SPECTATING : GameState.WAITING;
                 statusMsg = spec ? "Espectador" : "Esperando jugadores...";
             }
             public void onRoomInfo(int count, int min, boolean started) {
                 playerCount = count;
                 minPlayers  = min;
-                if (!started) statusMsg = count + "/" + min + " jugadores";
             }
             public void onGameStart(boolean isKiller, int dur) {
-                gameStarted = true;
+                state = GameState.PLAYING;
                 amKiller = isKiller;
                 gameDuration = dur;
+                gameTimer = dur;
                 statusMsg   = "";
             }
             public void onState(List<NetClient.RemotePlayer> list) {
@@ -137,24 +142,38 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             }
             public void onHit(int newHp) {
                 myHp = newHp;
+                if (myHp <= 0) state = GameState.DEAD;
             }
             public void onPlayerDied(int id) {
                 if (netClient != null && id == netClient.myId) {
-                    myHp = 0;
-                    isDead = true;
+                    state = GameState.DEAD;
                 }
             }
             public void onGameEnd(boolean killerWon) {
-                gameStarted = false;
-                showEndScreen = true;
+                state = GameState.END;
+                endKillerWon = killerWon;
                 endMsg = killerWon ? "El asesino ganó" : "¡Sobreviviste!";
+                new Handler(Looper.getMainLooper())
+                    .postDelayed(() -> resetToWaiting(), 4000);
             }
             public void onDisconnected() {
-                gameStarted = false;
+                state = GameState.CONNECTING;
                 statusMsg   = "Reconectando...";
             }
         });
         netClient.connect();
+    }
+
+    private void resetToWaiting() {
+        state       = GameState.WAITING;
+        amKiller    = false;
+        myHp        = 100;
+        endMsg      = "";
+        playerCount = 0;
+        statusMsg   = "Esperando jugadores...";
+        remoteStates.clear();
+        Map.generate(System.currentTimeMillis());
+        player = new Player(Map.getSpawnX(), Map.getSpawnY());
     }
 
     @Override
@@ -206,12 +225,26 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             }
         }
 
-        if (!gameStarted && !showEndScreen) {
-            drawWaitingScreen();
-            return;
+        switch (state) {
+            case CONNECTING:
+            case WAITING:
+            case SPECTATING:
+                drawWaitingScreen();
+                return;
+            case END:
+                drawEndScreen();
+                return;
+            case DEAD:
+                raycaster.render(pixelBuf, player, frameCount);
+                drawDeadOverlay();
+                flushFrame();
+                return;
+            case PLAYING:
+                break;
         }
 
-        if (!showEndScreen && !isSpectator) {
+        if (state == GameState.PLAYING) {
+            gameTimer = gameDuration;
             update();
             if (attackPressed) {
                 netClient.sendAttack();
@@ -222,101 +255,93 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 netClient.sendInput(player.x, player.y, player.angle);
         }
 
-        if (!showEndScreen) {
-            raycaster.render(pixelBuf, player, frameCount);
-            float interpFactor = Math.min(1f, delta * 0.25f);
-            for (RemoteState rs : remoteStates.values())
-                rs.interpolate(interpFactor);
+        raycaster.render(pixelBuf, player, frameCount);
+        float interpFactor = Math.min(1f, delta * 0.25f);
+        for (RemoteState rs : remoteStates.values())
+            rs.interpolate(interpFactor);
 
-            List<float[]> sprites = new ArrayList<>();
-            if (netClient != null) {
-                for (NetClient.RemotePlayer rp : netClient.remotePlayers) {
-                    if (rp.id == netClient.myId || rp.spectator) continue;
-                    RemoteState rs = remoteStates.get(rp.id);
-                    if (rs != null && rs.initialized)
-                        sprites.add(new float[]{rs.renderX, rs.renderY});
-                }
-            }
-            if (!sprites.isEmpty())
-                raycaster.renderSprites(pixelBuf, player, sprites, frameCount);
-        } else {
-            for (int i = 0; i < pixelBuf.length; i++) {
-                pixelBuf[i] = Color.BLACK;
+        List<float[]> sprites = new ArrayList<>();
+        if (netClient != null) {
+            for (NetClient.RemotePlayer rp : netClient.remotePlayers) {
+                if (rp.id == netClient.myId || rp.spectator) continue;
+                RemoteState rs = remoteStates.get(rp.id);
+                if (rs != null && rs.initialized)
+                    sprites.add(new float[]{rs.renderX, rs.renderY});
             }
         }
+        if (!sprites.isEmpty())
+            raycaster.renderSprites(pixelBuf, player, sprites, frameCount);
 
         frameBmp.setPixels(pixelBuf, 0, RW, 0, 0, RW, RH);
 
-        Canvas hudCanvas = new Canvas(frameBmp);
-        Paint  hudP  = new Paint(Paint.ANTI_ALIAS_FLAG);
+        Canvas hud = new Canvas(frameBmp);
+        Paint hp = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        // HP bar
-        hudP.setColor(Color.argb(180, 0, 0, 0));
-        hudCanvas.drawRect(4, RH-14, 84, RH-4, hudP);
+        if (gameTimer > 0) {
+            int mins = gameTimer / 60;
+            int secs = gameTimer % 60;
+            hp.setTextAlign(Paint.Align.CENTER);
+            hp.setColor(gameTimer < 30
+                ? Color.rgb(220,60,60)
+                : Color.argb(180,220,220,220));
+            hp.setTextSize(RH * 0.072f);
+            hp.setFakeBoldText(true);
+            hud.drawText(String.format("%d:%02d", mins, secs),
+                RW/2f, RH*0.09f, hp);
+            hp.setFakeBoldText(false);
+        }
+
+        hp.setColor(Color.argb(160, 0, 0, 0));
+        hud.drawRect(4, RH-16, 90, RH-4, hp);
         float hpPct = myHp / 100f;
-        hudP.setColor(hpPct > 0.5f
-            ? Color.rgb(50,200,50)
+        hp.setColor(hpPct > 0.5f
+            ? Color.rgb(40,200,60)
             : hpPct > 0.25f
-                ? Color.rgb(200,150,0)
-                : Color.rgb(200,50,50));
-        hudCanvas.drawRect(5, RH-13, 5 + hpPct*78, RH-5, hudP);
+                ? Color.rgb(220,160,0)
+                : Color.rgb(200,40,40));
+        hud.drawRect(5, RH-15, 5+hpPct*84, RH-5, hp);
+        hp.setColor(Color.argb(120,255,255,255));
+        hp.setTextSize(RH*0.042f);
+        hp.setTextAlign(Paint.Align.LEFT);
+        hud.drawText(myHp+"hp", 7, RH-6, hp);
 
-        // Contador jugadores
-        hudP.setColor(Color.argb(200,200,80,80));
-        hudP.setTextSize(RH * 0.07f);
-        int alive = 0;
-        if (netClient != null)
-            for (NetClient.RemotePlayer rp : netClient.remotePlayers)
-                if (!rp.spectator) alive++;
-        hudCanvas.drawText(alive + " vivos", RW*0.02f, RH*0.09f, hudP);
         if (amKiller) {
-            hudP.setColor(Color.argb(220,200,30,30));
-            hudP.setTextSize(RH * 0.07f);
-            hudP.setTextAlign(Paint.Align.LEFT);
-            hudCanvas.drawText("⚔ ASESINO", RW*0.02f, RH*0.18f, hudP);
-        }
-        if (isDead) {
-            hudP.setColor(Color.argb(160,180,0,0));
-            hudCanvas.drawRect(0,0,RW,RH,hudP);
-            hudP.setColor(Color.WHITE);
-            hudP.setTextSize(RH*0.12f);
-            hudP.setTextAlign(Paint.Align.CENTER);
-            hudCanvas.drawText("HAS MUERTO", RW/2f, RH/2f, hudP);
-        }
-        if (showEndScreen) {
-            hudP.setColor(Color.argb(220,0,0,0));
-            hudCanvas.drawRect(0,0,RW,RH,hudP);
-            hudP.setColor(Color.WHITE);
-            hudP.setTextSize(RH*0.10f);
-            hudP.setTextAlign(Paint.Align.CENTER);
-            hudCanvas.drawText(endMsg, RW/2f, RH/2f, hudP);
+            hp.setColor(Color.argb(200,200,30,30));
+            hp.setTextSize(RH * 0.062f);
+            hp.setFakeBoldText(true);
+            hp.setTextAlign(Paint.Align.LEFT);
+            hud.drawText("ASESINO", RW*0.02f, RH*0.16f, hp);
+            hp.setFakeBoldText(false);
+
+            hp.setColor(Color.argb(70,200,40,40));
+            hud.drawRect(RW*0.72f, RH*0.62f, RW*0.98f, RH*0.93f, hp);
+            hp.setColor(Color.argb(140,255,80,80));
+            hp.setStrokeWidth(1.5f);
+            hp.setStyle(Paint.Style.STROKE);
+            hud.drawRect(RW*0.72f, RH*0.62f, RW*0.98f, RH*0.93f, hp);
+            hp.setStyle(Paint.Style.FILL);
+            hp.setColor(Color.argb(180,255,255,255));
+            hp.setTextSize(RH * 0.07f);
+            hp.setFakeBoldText(true);
+            hp.setTextAlign(Paint.Align.CENTER);
+            hud.drawText("⚔", RW*0.85f, RH*0.81f, hp);
+            hp.setFakeBoldText(false);
+            hp.setTextSize(RH * 0.038f);
+            hud.drawText("ATACAR", RW*0.85f, RH*0.90f, hp);
         }
 
-        // Crosshair
-        hudP.setColor(Color.argb(150,255,255,255));
-        hudP.setStrokeWidth(1);
-        hudCanvas.drawLine(RW/2f-6, RH/2f, RW/2f+6, RH/2f, hudP);
-        hudCanvas.drawLine(RW/2f, RH/2f-6, RW/2f, RH/2f+6, hudP);
+        hp.setColor(Color.argb(100,255,255,255));
+        hp.setStrokeWidth(1f);
+        hud.drawLine(RW/2f-5, RH/2f, RW/2f+5, RH/2f, hp);
+        hud.drawLine(RW/2f, RH/2f-5, RW/2f, RH/2f+5, hp);
 
-        // Flash de ataque
         if (showAttackFX) {
-            hudP.setColor(Color.argb(60,255,50,50));
-            hudCanvas.drawRect(0, 0, RW, RH, hudP);
+            hp.setColor(Color.argb(80,255,40,40));
+            hp.setStyle(Paint.Style.FILL);
+            hud.drawRect(0, 0, RW, RH, hp);
             showAttackFX = false;
         }
-
-        // Botón ataque — indicador visual
-        if (amKiller) {
-            hudP.setColor(Color.argb(60,200,50,50));
-            hudCanvas.drawRect(RW*0.7f, RH*0.6f, RW*0.98f, RH*0.95f, hudP);
-            hudP.setColor(Color.argb(120,255,255,255));
-            hudP.setTextSize(RH * 0.065f);
-            hudP.setTextAlign(Paint.Align.CENTER);
-            hudCanvas.drawText("ATK", RW*0.84f, RH*0.81f, hudP);
-        }
-
-        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
-        drawQuad();
+        flushFrame();
     }
 
     private void update() {
@@ -341,31 +366,131 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         c.drawColor(Color.BLACK);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(Color.rgb(180,50,50));
-        p.setTextSize(RH*0.13f);
-        c.drawText("DUNGEON", RW/2f, RH*0.25f, p);
-        p.setColor(Color.rgb(140,140,140));
-        p.setTextSize(RH*0.058f);
-        c.drawText(statusMsg, RW/2f, RH*0.42f, p);
-        if (!isSpectator) {
-            p.setColor(Color.rgb(80,180,80));
-            p.setTextSize(RH*0.068f);
-            c.drawText(playerCount+"/"+minPlayers+" jugadores",
-                RW/2f, RH*0.56f, p);
-            p.setColor(Color.rgb(80,80,80));
-            p.setTextSize(RH*0.04f);
-            c.drawText("La partida inicia con "+minPlayers+" jugadores",
-                RW/2f, RH*0.72f, p);
-        } else {
+
+        p.setColor(Color.rgb(180, 30, 30));
+        p.setTextSize(RH * 0.14f);
+        p.setFakeBoldText(true);
+        c.drawText("DUNGEON", RW/2f, RH*0.22f, p);
+
+        p.setColor(Color.rgb(80, 20, 20));
+        p.setStrokeWidth(1.5f);
+        c.drawLine(RW*0.1f, RH*0.27f, RW*0.9f, RH*0.27f, p);
+
+        p.setFakeBoldText(false);
+
+        if (state == GameState.CONNECTING) {
+            p.setColor(Color.rgb(120,120,120));
+            p.setTextSize(RH * 0.055f);
+            c.drawText(statusMsg, RW/2f, RH*0.42f, p);
+            int dots = (int)(frameCount / 15) % 4;
+            String anim = ".".repeat(dots);
+            c.drawText(anim, RW/2f, RH*0.52f, p);
+        } else if (state == GameState.SPECTATING) {
             p.setColor(Color.rgb(200,150,50));
-            p.setTextSize(RH*0.055f);
-            c.drawText("Modo espectador", RW/2f, RH*0.56f, p);
+            p.setTextSize(RH * 0.065f);
+            c.drawText("ESPECTADOR", RW/2f, RH*0.42f, p);
+            p.setColor(Color.rgb(80,80,80));
+            p.setTextSize(RH * 0.042f);
+            c.drawText("Esperando próxima partida...", RW/2f, RH*0.54f, p);
+        } else {
+            p.setColor(Color.rgb(100,100,100));
+            p.setTextSize(RH * 0.048f);
+            c.drawText("Sala de espera", RW/2f, RH*0.36f, p);
+
+            float circleY = RH * 0.52f;
+            float circleR = RH * 0.045f;
+            float spacing = RW / (minPlayers + 1f);
+            for (int i = 0; i < minPlayers; i++) {
+                float cx = spacing * (i + 1);
+                if (i < playerCount) {
+                    p.setColor(Color.rgb(50, 180, 80));
+                    p.setStyle(Paint.Style.FILL);
+                    c.drawCircle(cx, circleY, circleR, p);
+                } else {
+                    p.setColor(Color.rgb(50, 50, 50));
+                    p.setStyle(Paint.Style.FILL);
+                    c.drawCircle(cx, circleY, circleR, p);
+                    p.setColor(Color.rgb(80,80,80));
+                    p.setStyle(Paint.Style.STROKE);
+                    p.setStrokeWidth(1.5f);
+                    c.drawCircle(cx, circleY, circleR, p);
+                }
+            }
+            p.setStyle(Paint.Style.FILL);
+
+            p.setColor(Color.rgb(80, 180, 80));
+            p.setTextSize(RH * 0.062f);
+            p.setFakeBoldText(true);
+            c.drawText(playerCount + " / " + minPlayers,
+                RW/2f, RH*0.67f, p);
+            p.setFakeBoldText(false);
+            p.setColor(Color.rgb(60,60,60));
+            p.setTextSize(RH * 0.038f);
+            c.drawText("jugadores conectados", RW/2f, RH*0.75f, p);
+            c.drawText("La partida inicia automáticamente",
+                RW/2f, RH*0.84f, p);
         }
-        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
-        drawQuad();
+        flushFrame();
     }
 
-    private void drawQuad() {
+    private void drawEndScreen() {
+        Canvas c = new Canvas(frameBmp);
+        c.drawColor(Color.BLACK);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setTextAlign(Paint.Align.CENTER);
+
+        if (endKillerWon) {
+            p.setColor(Color.argb(80, 150, 0, 0));
+            c.drawRect(0, 0, RW, RH, p);
+            p.setColor(Color.rgb(220, 40, 40));
+            p.setTextSize(RH * 0.10f);
+            p.setFakeBoldText(true);
+            c.drawText("EL ASESINO", RW/2f, RH*0.30f, p);
+            c.drawText("GANÓ", RW/2f, RH*0.44f, p);
+            p.setFakeBoldText(false);
+            p.setColor(Color.rgb(180, 80, 80));
+            p.setTextSize(RH * 0.048f);
+            c.drawText(amKiller ? "¡Eliminaste a todos!" :
+                "No lograste sobrevivir...", RW/2f, RH*0.60f, p);
+        } else {
+            p.setColor(Color.argb(80, 0, 100, 0));
+            c.drawRect(0, 0, RW, RH, p);
+            p.setColor(Color.rgb(50, 220, 80));
+            p.setTextSize(RH * 0.10f);
+            p.setFakeBoldText(true);
+            c.drawText("¡SOBREVIVISTE!", RW/2f, RH*0.35f, p);
+            p.setFakeBoldText(false);
+            p.setColor(Color.rgb(80, 180, 80));
+            p.setTextSize(RH * 0.048f);
+            c.drawText("El asesino no pudo con todos",
+                RW/2f, RH*0.55f, p);
+        }
+
+        p.setColor(Color.rgb(80, 80, 80));
+        p.setTextSize(RH * 0.038f);
+        c.drawText("Nueva partida en breve...", RW/2f, RH*0.80f, p);
+        flushFrame();
+    }
+
+    private void drawDeadOverlay() {
+        Canvas c = new Canvas(frameBmp);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(Color.argb(120, 180, 0, 0));
+        c.drawRect(0, 0, RW, RH, p);
+        p.setColor(Color.argb(220, 255, 255, 255));
+        p.setTextSize(RH * 0.10f);
+        p.setFakeBoldText(true);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("HAS MUERTO", RW/2f, RH*0.45f, p);
+        p.setFakeBoldText(false);
+        p.setTextSize(RH * 0.042f);
+        p.setColor(Color.argb(160, 200, 200, 200));
+        c.drawText("Esperando fin de partida...", RW/2f, RH*0.58f, p);
+    }
+
+    private void flushFrame() {
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texId);
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         GLES20.glUseProgram(program);
         quadVerts.position(0);

@@ -28,11 +28,14 @@ public class GameSurface extends GLSurfaceView {
             case MotionEvent.ACTION_POINTER_DOWN: {
                 float x = e.getX(idx);
                 float y = e.getY(idx);
-                float atkX = getWidth()  * 0.7f;
-                float atkY = getHeight() * 0.6f;
-                if (x >= atkX && y >= atkY && renderer.amKiller) {
-                    renderer.attackPressed = true;
-                    return true;
+                if (renderer.amKiller &&
+                    renderer.state == GameRenderer.GameState.PLAYING) {
+                    float atkX = getWidth() * 0.72f;
+                    float atkY = getHeight() * 0.62f;
+                    if (x >= atkX && y >= atkY) {
+                        renderer.attackPressed = true;
+                        return true;
+                    }
                 }
                 if (x < getWidth() * 0.5f) {
                     renderer.leftId     = pid;
