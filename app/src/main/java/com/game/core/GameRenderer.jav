@@ -108,6 +108,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         endResults = new ArrayList<>();
     private volatile String lastKillerName = "";
 
+    private final java.util.Map<Integer,Integer>
+        readyVotes = new java.util.concurrent.ConcurrentHashMap<>();
+
     private final ConcurrentHashMap<Integer, RemoteState>
         remoteStates = new ConcurrentHashMap<>();
 
@@ -150,6 +153,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 totalInRoom = Math.max(1, playerCount);
                 currentRoomId = room;
                 state = GameState.WAITING;
+                readyVotes.clear();
+                iAmReady = false;
                 statusMsg = host ? "Esperando jugadores..." :
                     "Conectado a sala "+room;
             }
@@ -161,6 +166,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 totalInRoom = total;
                 playerCount = total;
                 remoteStates.remove(id);
+                readyVotes.remove(id);
+                if(amHost) hostRecalcReady();
             }
             public void onYouAreHost(){
                 amHost = true;
@@ -206,14 +213,28 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             public void onReadyUpdate(int ready,int total,int[] votes){
                 readyCount=ready; minPlayers=total; modeVotes=votes;
                 totalInRoom = Math.max(1, total);
+                if(!amHost){
+                    readyVotes.clear();
+                    int seedKey = -1000;
+                    if(iAmReady&&netClient!=null)
+                        readyVotes.put(netClient.myId, myVotedMode);
+                    while(readyVotes.size()<ready)
+                        readyVotes.put(seedKey--, 0);
+                }
             }
             public void onReadyReset(){
                 iAmReady=false; readyCount=0; modeVotes=new int[3];
+                readyVotes.clear();
             }
             public void onRoomBusy(int pl,int mode){
                 roomBusy=true; roomBusyPlayers=pl; roomBusyMode=mode;
             }
             public void onPong(int ms){ pingMs=ms; }
+            public void onOtherPlayerReady(int id,int mode){
+                if(!amHost) return;
+                readyVotes.put(id,mode);
+                hostRecalcReady();
+            }
             public void onDisconnected(){
                 state=GameState.CONNECTING;
                 statusMsg="Reconectando...";
@@ -232,6 +253,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         iAmReady = false;
         readyCount = 0;
         modeVotes=new int[3];
+        readyVotes.clear();
         myVotedMode=0;
         Map.generate(System.currentTimeMillis());
         player=new Player(Map.getSpawnX(),Map.getSpawnY());
@@ -283,11 +305,6 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         long now=System.nanoTime();
         delta=Math.min((now-prevTime)/16_666_667f,3f);
         prevTime=now; frameCount++;
-
-        if(state==GameState.WAITING && iAmReady && amHost
-                && readyCount==totalInRoom){
-            hostStartGame();
-        }
 
         switch(state){
             case NAME_INPUT: drawNameScreen(); return;
@@ -955,10 +972,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         p.setTextSize(SH*0.048f);
         p.setFakeBoldText(true);
         p.setTextAlign(Paint.Align.CENTER);
-        int totalPlayers=Math.max(1,totalInRoom);
-        c.drawText(readyCount+"/"+
-            totalPlayers+" listos",
-            SW/2,SH*0.280f,p);
+        c.drawText(readyVotes.size()+"/"+totalInRoom+
+            " listos",SW/2,SH*0.280f,p);
         p.setFakeBoldText(false);
 
         p.setColor(Color.argb(100,150,140,130));
@@ -1544,8 +1559,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 float listoY=screenH*0.535f;
                 if(!iAmReady && ey>listoY
                         && ey<listoY+screenH*0.075f){
-                    iAmReady=true;
                     if(netClient!=null)
+                        readyVotes.put(netClient.myId,myVotedMode);
+                    iAmReady=true;
+                    if(amHost) hostRecalcReady();
+                    else if(netClient!=null)
                         netClient.sendReady(myVotedMode);
                     return;
                 }
@@ -1558,6 +1576,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                     }
                     remoteStates.clear();
                     iAmReady=false;
+                    readyVotes.clear();
                     roomBusy=false;
                     state=GameState.MENU;
                 }
@@ -1576,6 +1595,30 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 break;
             default: break;
         }
+    }
+
+    private void hostRecalcReady(){
+        if(!amHost) return;
+        int[] votes=new int[3];
+        for(int v:readyVotes.values())
+            if(v>=0&&v<3) votes[v]++;
+        int ready=readyVotes.size();
+        int total=totalInRoom;
+
+        JsonObject upd=new JsonObject();
+        upd.addProperty("type","ready_update");
+        upd.addProperty("ready",ready);
+        upd.addProperty("total",total);
+        com.google.gson.JsonArray va=new com.google.gson.JsonArray();
+        for(int v:votes) va.add(v);
+        upd.add("votes",va);
+        if(netClient!=null) netClient.hostBroadcast(upd);
+
+        readyCount=ready;
+        minPlayers=total;
+        modeVotes=votes;
+
+        if(ready>=2 && ready==total) hostStartGame();
     }
 
     private void hostStartGame(){
@@ -1635,6 +1678,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 myHp=100; state=GameState.PLAYING;
                 player=new Player(sx,sy);
                 statusMsg="";
+                readyVotes.clear();
                 break;
             }
         }
