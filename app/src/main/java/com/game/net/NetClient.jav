@@ -40,6 +40,9 @@ public class NetClient {
             List<EndResult> results);
         void onBlackout(boolean active);
         void onDetectorPing(float dist);
+        void onPong(int pingMs);
+        void onRoomBusy(int players, int mode);
+        void onReadyReset();
         void onDisconnected();
     }
 
@@ -59,6 +62,7 @@ public class NetClient {
     public volatile boolean spectator = false;
     public volatile int lastTimer = 0;
     public volatile boolean blackoutActive = false;
+    public volatile long lastPingSent = 0;
     public final CopyOnWriteArrayList<RemotePlayer>
         remotePlayers = new CopyOnWriteArrayList<>();
 
@@ -200,6 +204,20 @@ public class NetClient {
                     listener.onDetectorPing(
                         msg.get("dist").getAsFloat());
                     break;
+                case "pong": {
+                    long now = System.currentTimeMillis();
+                    long sent = lastPingSent;
+                    listener.onPong((int)(now - sent));
+                    break;
+                }
+                case "room_busy":
+                    listener.onRoomBusy(
+                        msg.get("players").getAsInt(),
+                        msg.get("mode").getAsInt());
+                    break;
+                case "ready_reset":
+                    listener.onReadyReset();
+                    break;
                 case "state":
                     if (msg.has("timer"))
                         lastTimer =
@@ -262,6 +280,14 @@ public class NetClient {
         JsonObject o = new JsonObject();
         o.addProperty("type","ready");
         o.addProperty("voted_mode", votedMode);
+        ws.send(gson.toJson(o));
+    }
+
+    public void sendPing(){
+        if(!isOpen()) return;
+        lastPingSent = System.currentTimeMillis();
+        JsonObject o = new JsonObject();
+        o.addProperty("type","ping");
         ws.send(gson.toJson(o));
     }
 

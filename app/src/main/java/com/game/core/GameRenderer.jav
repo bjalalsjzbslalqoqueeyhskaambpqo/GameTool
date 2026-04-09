@@ -93,6 +93,12 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private volatile int[] modeVotes      = new int[6];
     private volatile int     readyCount    = 0;
     private volatile boolean iAmReady      = false;
+    private volatile int pingMs = 0;
+    private volatile boolean showSettingsOverlay = false;
+    private long lastPingTime = 0;
+    private volatile boolean roomBusy = false;
+    private volatile int roomBusyPlayers = 0;
+    private volatile int roomBusyMode = 0;
     private volatile List<NetClient.EndResult>
         endResults = new ArrayList<>();
     private volatile String lastKillerName = "";
@@ -138,6 +144,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 Map.generate(seed);
                 player=new Player(Map.getSpawnX(),Map.getSpawnY());
                 gameMode=mode;
+                roomBusy=false;
                 state=spec?GameState.SPECTATING:GameState.WAITING;
                 statusMsg=spec?"Espectador":"Sala: "+currentRoomId;
             }
@@ -154,6 +161,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                     boolean det,int mode,int dur){
                 gameMode=mode; amKiller=killer;
                 amInfected=inf; amDetective=det;
+                roomBusy=false;
                 myHp=100; state=GameState.PLAYING; statusMsg="";
             }
             public void onHit(int hp){ myHp=hp; }
@@ -173,6 +181,18 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             public void onDetectorPing(float dist){
                 detectorDist=dist;
                 detectorTime=System.currentTimeMillis();
+            }
+            public void onPong(int ms){ pingMs = ms; }
+            public void onRoomBusy(int pl, int mode){
+                roomBusy = true;
+                roomBusyPlayers = pl;
+                roomBusyMode = mode;
+                state = GameState.SPECTATING;
+            }
+            public void onReadyReset(){
+                iAmReady = false;
+                readyCount = 0;
+                modeVotes = new int[6];
             }
             public void onReadyUpdate(int ready,
                     int total, int[] votes){
@@ -201,6 +221,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         myHp=100; blackoutActive=false; detectorDist=-1;
         statusMsg=playerCount+"/"+minPlayers+" jugadores";
         remoteStates.clear();
+        roomBusy=false;
         iAmReady = false;
         readyCount = 0;
         modeVotes=new int[6];
@@ -238,6 +259,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             "dungeon_prefs",
             android.content.Context.MODE_PRIVATE);
         playerName = prefs.getString("player_name","");
+        camSensitivity = prefs.getFloat(
+            "sensitivity", 0.07f);
         if(!playerName.isEmpty()) state = GameState.MENU;
     }
 
@@ -299,6 +322,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         }
         if(netClient!=null)
             netClient.sendInput(player.x,player.y,player.angle);
+        if(System.currentTimeMillis()-lastPingTime>3000){
+            lastPingTime=System.currentTimeMillis();
+            if(netClient!=null) netClient.sendPing();
+        }
 
         float interp=Math.min(1f,delta*0.25f);
         if(netClient!=null){
@@ -331,6 +358,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         frameBmp.setPixels(pixelBuf,0,RW,0,0,RW,RH);
         drawHUD();
         flushFrame();
+        if(showSettingsOverlay) drawSettingsOverlay();
     }
 
     public boolean canAttack(){
@@ -942,6 +970,44 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         String[] modeNames={"Asesino","Infección",
             "FFA","Detective","Apagón","Zona"};
+        if(state==GameState.SPECTATING||roomBusy){
+            c.drawColor(Color.rgb(8,6,10));
+            p.setTextAlign(Paint.Align.CENTER);
+            p.setColor(Color.rgb(180,150,50));
+            p.setTextSize(screenH*0.048f);
+            p.setFakeBoldText(true);
+            c.drawText("PARTIDA EN CURSO",
+                screenW/2f,screenH*0.30f,p);
+            p.setFakeBoldText(false);
+            p.setColor(Color.argb(150,150,140,130));
+            p.setTextSize(screenH*0.025f);
+            String mn=roomBusyMode<modeNames.length?
+                modeNames[roomBusyMode]:"?";
+            c.drawText(roomBusyPlayers+
+                " jugadores · modo "+mn,
+                screenW/2f,screenH*0.38f,p);
+            p.setColor(Color.argb(100,120,110,100));
+            p.setTextSize(screenH*0.020f);
+            c.drawText("Esperando que termine para unirte",
+                screenW/2f,screenH*0.46f,p);
+            android.graphics.RectF bv=
+                new android.graphics.RectF(
+                screenW*0.3f,screenH*0.60f,
+                screenW*0.7f,screenH*0.66f);
+            p.setColor(Color.argb(80,80,80,80));
+            p.setStyle(Paint.Style.FILL);
+            c.drawRoundRect(bv,14,14,p);
+            p.setColor(Color.argb(150,160,150,140));
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1f);
+            c.drawRoundRect(bv,14,14,p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(180,180,170,160));
+            p.setTextSize(screenH*0.022f);
+            c.drawText("← volver",screenW/2f,screenH*0.635f,p);
+            flushFrameHD();
+            return;
+        }
         int[] modeColors={Color.rgb(140,25,25),Color.rgb(30,100,20),
             Color.rgb(140,110,20),Color.rgb(20,50,120),
             Color.rgb(60,15,100),Color.rgb(120,55,15)};
@@ -1236,6 +1302,87 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         flushFrameHD();
     }
 
+    private void drawSettingsOverlay(){
+        Canvas c = new Canvas(frameBmpHD);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float SW=screenW, SH=screenH;
+        c.drawBitmap(frameBmp, null,
+            new android.graphics.RectF(0,0,SW,SH), null);
+
+        p.setColor(Color.argb(200,8,6,10));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRect(SW*0.05f,SH*0.25f,
+            SW*0.95f,SH*0.75f,p);
+        p.setColor(Color.argb(150,180,30,30));
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(2f);
+        android.graphics.RectF box=
+            new android.graphics.RectF(
+            SW*0.05f,SH*0.25f,SW*0.95f,SH*0.75f);
+        c.drawRoundRect(box,20,20,p);
+        p.setStyle(Paint.Style.FILL);
+
+        p.setColor(Color.rgb(220,220,215));
+        p.setTextSize(SH*0.030f);
+        p.setFakeBoldText(true);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("AJUSTES",SW/2,SH*0.305f,p);
+        p.setFakeBoldText(false);
+
+        p.setColor(Color.argb(150,180,170,160));
+        p.setTextSize(SH*0.020f);
+        c.drawText("Sensibilidad de cámara",SW/2,SH*0.360f,p);
+
+        float barX=SW*0.12f, barY=SH*0.375f;
+        float barW=SW*0.76f, barH=SH*0.022f;
+        p.setColor(Color.argb(80,40,40,60));
+        p.setStyle(Paint.Style.FILL);
+        android.graphics.RectF barBg=
+            new android.graphics.RectF(
+            barX,barY,barX+barW,barY+barH);
+        c.drawRoundRect(barBg,barH/2,barH/2,p);
+        float sPos=(camSensitivity-0.02f)/(0.15f-0.02f);
+        p.setColor(Color.rgb(80,80,160));
+        android.graphics.RectF barFg=
+            new android.graphics.RectF(
+            barX,barY,barX+barW*sPos,barY+barH);
+        c.drawRoundRect(barFg,barH/2,barH/2,p);
+        p.setColor(Color.rgb(140,140,220));
+        c.drawCircle(barX+barW*sPos,
+            barY+barH/2,barH*1.4f,p);
+
+        p.setColor(Color.argb(120,150,150,200));
+        p.setTextSize(SH*0.018f);
+        c.drawText(String.format("%.2f",camSensitivity),
+            SW/2,SH*0.420f,p);
+
+        p.setColor(pingMs<80?Color.rgb(60,200,80):
+            pingMs<150?Color.rgb(200,180,40):
+            Color.rgb(200,60,60));
+        p.setTextSize(SH*0.020f);
+        c.drawText("Ping: "+pingMs+"ms",SW/2,SH*0.470f,p);
+
+        android.graphics.RectF btnClose=
+            new android.graphics.RectF(
+            SW*0.3f,SH*0.640f,SW*0.7f,SH*0.700f);
+        p.setColor(Color.rgb(80,20,20));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRoundRect(btnClose,14,14,p);
+        p.setColor(Color.rgb(160,40,40));
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(1.5f);
+        c.drawRoundRect(btnClose,14,14,p);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.rgb(220,210,200));
+        p.setTextSize(SH*0.024f);
+        p.setFakeBoldText(true);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("CERRAR",SW/2,SH*0.678f,p);
+        p.setFakeBoldText(false);
+
+        flushFrameHD();
+    }
+
     private void drawHUD(){
         Canvas c=new Canvas(frameBmp);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1351,6 +1498,21 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             p.setTextAlign(Paint.Align.LEFT);
             c.drawText(alive+" vivos",RW*0.02f,RH*0.09f,p);
         }
+        p.setColor(pingMs<80?Color.argb(120,60,200,80):
+            pingMs<150?Color.argb(120,200,180,40):
+            Color.argb(120,200,60,60));
+        p.setTextSize(RH*0.038f);
+        p.setTextAlign(Paint.Align.LEFT);
+        c.drawText(pingMs+"ms",RW*0.02f,RH*0.16f,p);
+
+        Paint sp = new Paint(Paint.ANTI_ALIAS_FLAG);
+        sp.setColor(Color.argb(80,80,80,80));
+        sp.setStyle(Paint.Style.FILL);
+        c.drawRect(RW-18, 2, RW-2, 18, sp);
+        sp.setColor(Color.argb(150,200,200,200));
+        sp.setTextSize(RH*0.055f);
+        sp.setTextAlign(Paint.Align.CENTER);
+        c.drawText("⚙", RW-10f, 14f, sp);
     }
 
     public void handleNameKeyboard(
@@ -1484,6 +1646,40 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                     }
                 }
                 break;
+            case PLAYING:
+                if(showSettingsOverlay){
+                    float barX=screenW*0.12f;
+                    float barY=screenH*0.375f;
+                    float barW=screenW*0.76f;
+                    float barH=screenH*0.022f;
+                    if(ey>barY-20 && ey<barY+barH+20
+                            && ex>barX && ex<barX+barW){
+                        float pos=(ex-barX)/barW;
+                        pos=Math.max(0,Math.min(1,pos));
+                        camSensitivity=0.02f+pos*(0.15f-0.02f);
+                        if(prefs!=null)
+                            prefs.edit()
+                                .putFloat("sensitivity",camSensitivity)
+                                .apply();
+                        return;
+                    }
+                    if(ey>screenH*0.640f && ey<screenH*0.700f
+                            && ex>screenW*0.3f && ex<screenW*0.7f){
+                        showSettingsOverlay=false;
+                        return;
+                    }
+                    return;
+                }
+
+                float gearX=screenW*(1f-18f/RW);
+                float gearY=screenH*(18f/RH);
+                if(ex>gearX && ey<gearY){
+                    showSettingsOverlay=!showSettingsOverlay;
+                    leftId=-1; rightId=-1;
+                    leftDX=leftDY=rightDX=rightDY=0;
+                    return;
+                }
+                break;
             case WAITING:
                 float vBtnW=(screenW-screenW*0.12f)/3f;
                 float vBtnH=screenH*0.070f;
@@ -1524,6 +1720,19 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                     }
                     remoteStates.clear();
                     iAmReady=false;
+                    roomBusy=false;
+                    state=GameState.MENU;
+                }
+                break;
+            case SPECTATING:
+                if(ey>screenH*0.60f && ey<screenH*0.66f
+                        && ex>screenW*0.3f && ex<screenW*0.7f){
+                    if(netClient!=null){
+                        netClient.disconnect();
+                        netClient=null;
+                    }
+                    remoteStates.clear();
+                    roomBusy=false;
                     state=GameState.MENU;
                 }
                 break;
