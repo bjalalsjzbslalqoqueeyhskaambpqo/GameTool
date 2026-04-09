@@ -8,8 +8,6 @@ import android.graphics.Paint;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
-import android.os.Handler;
-import android.os.Looper;
 import com.game.game.Map;
 import com.game.game.Player;
 import com.game.game.Raycaster;
@@ -136,8 +134,14 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 statusMsg=spec?"Espectador":"Esperando jugadores...";
             }
             public void onRoomInfo(int cnt,int min,boolean started){
-                playerCount=cnt; minPlayers=min;
-                if(!started) statusMsg=cnt+"/"+min+" jugadores";
+                playerCount = cnt;
+                minPlayers  = min;
+                if (!started && state == GameState.END) {
+                    resetToWaiting();
+                } else if (!started && state != GameState.PLAYING) {
+                    statusMsg = cnt + "/" + min + " jugadores";
+                    state = GameState.WAITING;
+                }
             }
             public void onGameStart(boolean killer,boolean inf,
                     boolean det,int mode,int dur){
@@ -156,8 +160,6 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             public void onGameEnd(boolean kw){
                 endKillerWon=kw;
                 state=GameState.END;
-                new Handler(Looper.getMainLooper())
-                    .postDelayed(()->resetToWaiting(), 5000);
             }
             public void onBlackout(boolean on){
                 blackoutActive=on;
@@ -181,10 +183,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         blackoutActive=false; detectorDist=-1;
         statusMsg="Esperando jugadores...";
         remoteStates.clear();
-        if(netClient!=null && netClient.isOpen()){
-            Map.generate(System.currentTimeMillis());
-            player=new Player(Map.getSpawnX(),Map.getSpawnY());
-        }
+        Map.generate(System.currentTimeMillis());
+        player=new Player(Map.getSpawnX(),Map.getSpawnY());
     }
 
     @Override
