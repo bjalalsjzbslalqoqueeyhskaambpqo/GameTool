@@ -186,7 +186,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 showAttackFX  = true;
             }
             if (netClient != null)
-                netClient.sendInput(leftDX, leftDY, player.angle);
+                netClient.sendInput(player.x, player.y, player.angle);
         }
 
         if (!showEndScreen) {

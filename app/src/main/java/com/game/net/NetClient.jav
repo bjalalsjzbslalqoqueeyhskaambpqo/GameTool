@@ -142,12 +142,12 @@ public class NetClient {
         }
     }
 
-    public void sendInput(float dx, float dy, float angle) {
-        if (ws == null || !ws.isOpen() || spectator) return;
+    public void sendInput(float x, float y, float angle) {
+        if (!isOpen() || spectator) return;
         JsonObject o = new JsonObject();
         o.addProperty("type",  "input");
-        o.addProperty("dx",    dx);
-        o.addProperty("dy",    dy);
+        o.addProperty("x",     x);
+        o.addProperty("y",     y);
         o.addProperty("angle", angle);
         ws.send(gson.toJson(o));
     }
