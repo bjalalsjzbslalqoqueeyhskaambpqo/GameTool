@@ -1,6 +1,7 @@
 package com.game.core;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -86,8 +87,15 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private volatile long    detectorTime  = 0;
     private volatile String  currentRoomId = "";
     private volatile boolean allReady      = false;
+    private android.content.SharedPreferences prefs;
+    private volatile float camSensitivity = 0.07f;
+    private volatile int   myVotedMode    = 0;
+    private volatile int[] modeVotes      = new int[6];
     private volatile int     readyCount    = 0;
     private volatile boolean iAmReady      = false;
+    private volatile List<NetClient.EndResult>
+        endResults = new ArrayList<>();
+    private volatile String lastKillerName = "";
 
     private final ConcurrentHashMap<Integer, RemoteState>
         remoteStates = new ConcurrentHashMap<>();
@@ -149,22 +157,28 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 myHp=100; state=GameState.PLAYING; statusMsg="";
             }
             public void onHit(int hp){ myHp=hp; }
-            public void onPlayerDied(int id){
+            public void onPlayerDied(int id, String killerName){
                 if(netClient!=null&&id==netClient.myId){
                     myHp=0; state=GameState.DEAD;
+                    lastKillerName=killerName;
                 }
             }
-            public void onGameEnd(boolean kw){
-                endKillerWon=kw; state=GameState.END;
+            public void onGameEnd(boolean kw,
+                    List<NetClient.EndResult> results){
+                endKillerWon=kw;
+                endResults=results;
+                state=GameState.END;
             }
             public void onBlackout(boolean on){ blackoutActive=on; }
             public void onDetectorPing(float dist){
                 detectorDist=dist;
                 detectorTime=System.currentTimeMillis();
             }
-            public void onReadyUpdate(int ready, int total){
+            public void onReadyUpdate(int ready,
+                    int total, int[] votes){
                 readyCount = ready;
                 minPlayers = total;
+                modeVotes = votes;
             }
             public void onDisconnected(){
                 if(state==GameState.PLAYING||state==GameState.DEAD){
@@ -189,6 +203,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         remoteStates.clear();
         iAmReady = false;
         readyCount = 0;
+        modeVotes=new int[6];
+        myVotedMode=0;
         Map.generate(System.currentTimeMillis());
         player=new Player(Map.getSpawnX(),Map.getSpawnY());
     }
@@ -218,6 +234,11 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             GLES20.GL_TEXTURE_MAG_FILTER,GLES20.GL_NEAREST);
         GLES20.glClearColor(0,0,0,1);
         prevTime=System.nanoTime();
+        prefs = ctx.getSharedPreferences(
+            "dungeon_prefs",
+            android.content.Context.MODE_PRIVATE);
+        playerName = prefs.getString("player_name","");
+        if(!playerName.isEmpty()) state = GameState.MENU;
     }
 
     @Override public void onSurfaceChanged(GL10 gl,int w,int h){
@@ -260,6 +281,12 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 dp.setTextSize(RH*0.042f);
                 dp.setColor(Color.argb(160,200,200,200));
                 dc.drawText("Esperando fin...",RW/2f,RH*0.58f,dp);
+                if(!lastKillerName.isEmpty()){
+                    dp.setColor(Color.argb(180,220,100,100));
+                    dp.setTextSize(RH*0.048f);
+                    dc.drawText("Eliminado por: "+lastKillerName,
+                        RW/2f,RH*0.65f,dp);
+                }
                 flushFrame(); return;
             case PLAYING: break;
             default: return;
@@ -330,7 +357,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         if(Math.abs(jx)>0.05f||Math.abs(jy)>0.05f)
             player.move((fx*(-jy)+rx*jx)*spd,(fy*(-jy)+ry*jx)*spd);
         if(Math.abs(rightDX)>0.005f)
-            player.angle+=rightDX*0.07f*delta;
+            player.angle += rightDX * camSensitivity * delta;
         rightDX=0; rightDY=0;
 
         if(gameMode==MODE_FFA&&myHp>0&&myHp<100&&frameCount%300==0)
@@ -679,99 +706,170 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void drawWaitingScreen(){
-        Canvas c=new Canvas(frameBmpHD);
-        float SW=screenW, SH=screenH;
+        Canvas c = new Canvas(frameBmpHD);
         c.drawColor(Color.BLACK);
-        c.scale(SW/(float)RW, SH/(float)RH);
-        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setTextAlign(Paint.Align.CENTER);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float SW = screenW, SH = screenH;
 
+        p.setTextAlign(Paint.Align.CENTER);
         p.setColor(Color.rgb(180,30,30));
-        p.setTextSize(RH*0.11f);
+        p.setTextSize(SH*0.06f);
         p.setFakeBoldText(true);
-        c.drawText("DUNGEON",RW/2f,RH*0.13f,p);
+        c.drawText("DUNGEON",SW/2,SH*0.06f,p);
         p.setFakeBoldText(false);
 
-        // Código de sala
-        if(!currentRoomId.isEmpty()){
-            p.setColor(Color.rgb(80,80,80));
-            p.setTextSize(RH*0.038f);
-            c.drawText("SALA: "+currentRoomId,RW/2f,RH*0.20f,p);
+        p.setColor(Color.rgb(80,80,80));
+        p.setTextSize(SH*0.022f);
+        c.drawText("SALA: "+currentRoomId,SW/2,SH*0.10f,p);
+
+        float circleY = SH*0.17f;
+        if(netClient!=null){
+            List<NetClient.RemotePlayer> rps =
+                new ArrayList<>(netClient.remotePlayers);
+            int n = Math.max(rps.size(),1);
+            float spacing = SW/(n+1f);
+            for(int i=0;i<rps.size();i++){
+                NetClient.RemotePlayer rp = rps.get(i);
+                float cx2 = spacing*(i+1);
+                p.setColor(rp.ready ?
+                    Color.rgb(50,180,80):Color.rgb(60,60,60));
+                p.setStyle(Paint.Style.FILL);
+                c.drawCircle(cx2,circleY,SH*0.028f,p);
+                if(!rp.ready){
+                    p.setColor(Color.rgb(90,90,90));
+                    p.setStyle(Paint.Style.STROKE);
+                    p.setStrokeWidth(2f);
+                    c.drawCircle(cx2,circleY,SH*0.028f,p);
+                }
+                p.setStyle(Paint.Style.FILL);
+                p.setColor(Color.argb(180,180,180,180));
+                p.setTextSize(SH*0.018f);
+                p.setTextAlign(Paint.Align.CENTER);
+                String nm = rp.name.length()>6 ?
+                    rp.name.substring(0,6):rp.name;
+                c.drawText(nm,cx2,circleY+SH*0.046f,p);
+            }
         }
 
-        if(state==GameState.CONNECTING){
-            p.setColor(Color.rgb(120,120,120));
-            p.setTextSize(RH*0.052f);
-            c.drawText(statusMsg,RW/2f,RH*0.40f,p);
-            int dots=(int)(frameCount/15)%4;
-            c.drawText(".".repeat(dots),RW/2f,RH*0.50f,p);
-        } else if(state==GameState.SPECTATING){
-            p.setColor(Color.rgb(200,150,50));
-            p.setTextSize(RH*0.062f);
-            c.drawText("ESPECTADOR",RW/2f,RH*0.40f,p);
-            p.setColor(Color.rgb(70,70,70));
-            p.setTextSize(RH*0.040f);
-            c.drawText("Esperando próxima partida...",RW/2f,RH*0.52f,p);
-        } else {
-            int m=Math.min(gameMode,MODE_NAMES.length-1);
-            int mc=MODE_COLORS[m];
-            p.setColor(Color.argb(200,
-                Color.red(mc),Color.green(mc),Color.blue(mc)));
-            p.setTextSize(RH*0.050f);
-            p.setFakeBoldText(true);
-            c.drawText(MODE_NAMES[m],RW/2f,RH*0.28f,p);
-            p.setFakeBoldText(false);
+        p.setColor(Color.rgb(80,180,80));
+        p.setTextSize(SH*0.038f);
+        p.setFakeBoldText(true);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText(readyCount+"/"+
+            (netClient!=null?
+            netClient.remotePlayers.size():0)+
+            " listos",SW/2,SH*0.28f,p);
+        p.setFakeBoldText(false);
 
-            float cy=RH*0.44f,cr=RH*0.038f;
-            float sp=RW/(Math.max(1,minPlayers)+1f);
-            for(int i=0;i<Math.max(1,minPlayers);i++){
-                float cx2=sp*(i+1);
-                p.setColor(i<readyCount
-                    ?Color.rgb(50,180,80):Color.rgb(55,55,55));
-                p.setStyle(Paint.Style.FILL);
-                c.drawCircle(cx2,cy,cr,p);
-                if(i>=readyCount){
-                    p.setColor(Color.rgb(70,70,70));
-                    p.setStyle(Paint.Style.STROKE);
-                    p.setStrokeWidth(1.5f);
-                    c.drawCircle(cx2,cy,cr,p);
-                }
+        p.setColor(Color.rgb(80,80,80));
+        p.setTextSize(SH*0.020f);
+        c.drawText("Votar modo:",SW/2,SH*0.33f,p);
+
+        String[] modeNames={"Asesino","Infección",
+            "FFA","Detective","Apagón","Zona"};
+        int[] modeColors={0xFFCC2222,0xFF44BB22,
+            0xFFCCAA11,0xFF2266CC,0xFF441188,0xFFCC6611};
+
+        for(int i=0;i<6;i++){
+            int col=i%2, row=i/3;
+            float bx=SW*(col==0?0.04f:0.52f);
+            float by=SH*(0.36f+row*0.075f);
+            float bw=SW*0.44f, bh=SH*0.062f;
+            boolean selected=(myVotedMode==i&&iAmReady);
+            int mc=modeColors[i];
+            p.setColor(selected ?
+                Color.argb(220,Color.red(mc),
+                    Color.green(mc),Color.blue(mc)):
+                Color.argb(80,Color.red(mc),
+                    Color.green(mc),Color.blue(mc)));
+            p.setStyle(Paint.Style.FILL);
+            c.drawRect(bx,by,bx+bw,by+bh,p);
+            if(selected){
+                p.setColor(Color.argb(255,
+                    Color.red(mc),Color.green(mc),
+                    Color.blue(mc)));
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(3f);
+                c.drawRect(bx,by,bx+bw,by+bh,p);
             }
             p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.rgb(80,180,80));
-            p.setTextSize(RH*0.065f);
-            p.setFakeBoldText(true);
-            c.drawText(readyCount+"/"+Math.max(1,minPlayers)+" listos",RW/2f,RH*0.57f,p);
+            p.setColor(Color.WHITE);
+            p.setTextSize(SH*0.022f);
+            p.setFakeBoldText(selected);
+            p.setTextAlign(Paint.Align.LEFT);
+            c.drawText(modeNames[i],bx+bw*0.06f,
+                by+bh*0.52f,p);
             p.setFakeBoldText(false);
-            p.setColor(Color.rgb(60,60,60));
-            p.setTextSize(RH*0.036f);
-            c.drawText("jugadores listos",RW/2f,RH*0.64f,p);
-            if(!iAmReady){
-                p.setColor(Color.rgb(30,120,30));
-                p.setStyle(Paint.Style.FILL);
-                c.drawRect(RW*0.1f,RH*0.72f,RW*0.9f,RH*0.84f,p);
-                p.setColor(Color.WHITE);
-                p.setTextSize(RH*0.06f);
-                p.setFakeBoldText(true);
-                c.drawText("¡LISTO!",RW/2f,RH*0.80f,p);
-                p.setFakeBoldText(false);
-            } else {
-                p.setColor(Color.rgb(130,130,130));
-                p.setTextSize(RH*0.040f);
-                int dots=(int)(frameCount/15)%4;
-                c.drawText("Esperando jugadores..." + ".".repeat(dots),
-                    RW/2f,RH*0.78f,p);
+            if(modeVotes!=null && i<modeVotes.length
+                    && modeVotes[i]>0){
+                p.setColor(Color.argb(200,255,220,0));
+                p.setTextSize(SH*0.020f);
+                p.setTextAlign(Paint.Align.RIGHT);
+                c.drawText(modeVotes[i]+"v",
+                    bx+bw*0.94f,by+bh*0.52f,p);
             }
         }
+
+        if(!iAmReady){
+            p.setColor(Color.rgb(30,120,30));
+            p.setStyle(Paint.Style.FILL);
+            c.drawRect(SW*0.1f,SH*0.62f,
+                SW*0.9f,SH*0.70f,p);
+            p.setColor(Color.WHITE);
+            p.setTextSize(SH*0.040f);
+            p.setFakeBoldText(true);
+            p.setTextAlign(Paint.Align.CENTER);
+            c.drawText("¡LISTO!",SW/2,SH*0.675f,p);
+            p.setFakeBoldText(false);
+        } else {
+            p.setColor(Color.argb(150,50,150,50));
+            p.setStyle(Paint.Style.FILL);
+            c.drawRect(SW*0.1f,SH*0.62f,
+                SW*0.9f,SH*0.70f,p);
+            p.setColor(Color.argb(200,150,255,150));
+            p.setTextSize(SH*0.032f);
+            p.setTextAlign(Paint.Align.CENTER);
+            int dots=(int)(frameCount/15)%4;
+            c.drawText("Esperando"+
+                ".".repeat(dots),SW/2,SH*0.675f,p);
+        }
+
+        p.setColor(Color.rgb(60,60,60));
+        p.setTextSize(SH*0.018f);
+        p.setTextAlign(Paint.Align.LEFT);
+        c.drawText("Sensibilidad cámara:",
+            SW*0.05f,SH*0.76f,p);
+        float barX=SW*0.05f, barY=SH*0.78f;
+        float barW=SW*0.90f, barH=SH*0.022f;
+        p.setColor(Color.rgb(40,40,40));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRect(barX,barY,barX+barW,barY+barH,p);
+        float sensPos=(camSensitivity-0.02f)/(0.15f-0.02f);
+        p.setColor(Color.rgb(100,100,180));
+        c.drawRect(barX,barY,
+            barX+barW*sensPos,barY+barH,p);
+        p.setColor(Color.rgb(150,150,220));
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(1.5f);
+        c.drawRect(barX,barY,barX+barW,barY+barH,p);
+        p.setStyle(Paint.Style.FILL);
+
+        p.setColor(Color.argb(100,80,80,80));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRect(SW*0.3f,SH*0.84f,SW*0.7f,SH*0.91f,p);
+        p.setColor(Color.argb(160,180,180,180));
+        p.setTextSize(SH*0.026f);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("← Volver",SW/2,SH*0.88f,p);
+
         flushFrameHD();
     }
 
     private void drawEndScreen(){
-        Canvas c=new Canvas(frameBmpHD);
-        float SW=screenW, SH=screenH;
+        Canvas c = new Canvas(frameBmpHD);
         c.drawColor(Color.BLACK);
-        c.scale(SW/(float)RW, SH/(float)RH);
-        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float SW=screenW, SH=screenH;
         p.setTextAlign(Paint.Align.CENTER);
 
         String titulo,sub;
@@ -808,20 +906,52 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 color=iWon?Color.rgb(220,180,50):Color.rgb(150,150,150);
         }
 
-        p.setColor(Color.argb(iWon?50:40,
-            iWon?0:150,iWon?80:0,0));
-        c.drawRect(0,0,RW,RH,p);
         p.setColor(color);
-        p.setTextSize(RH*0.088f);
+        p.setTextSize(SH*0.07f);
         p.setFakeBoldText(true);
-        c.drawText(titulo,RW/2f,RH*0.28f,p);
+        c.drawText(titulo,SW/2f,SH*0.28f,p);
         p.setFakeBoldText(false);
-        p.setTextSize(RH*0.048f);
+        p.setTextSize(SH*0.036f);
         p.setColor(Color.argb(200,200,200,200));
-        c.drawText(sub,RW/2f,RH*0.44f,p);
+        c.drawText(sub,SW/2f,SH*0.44f,p);
+
+        if(!endResults.isEmpty()){
+            p.setColor(Color.rgb(100,100,100));
+            p.setTextSize(SH*0.025f);
+            c.drawText("── Resultados ──",SW/2,SH*0.52f,p);
+
+            for(int i=0;i<endResults.size();i++){
+                NetClient.EndResult er=endResults.get(i);
+                float ry2=SH*(0.56f+i*0.065f);
+                p.setColor(er.won ?
+                    Color.argb(60,0,150,0):
+                    Color.argb(40,150,0,0));
+                p.setStyle(Paint.Style.FILL);
+                c.drawRect(SW*0.05f,ry2-SH*0.022f,
+                    SW*0.95f,ry2+SH*0.034f,p);
+                p.setColor(er.won ?
+                    Color.rgb(100,220,100):
+                    Color.rgb(180,180,180));
+                p.setTextSize(SH*0.030f);
+                p.setTextAlign(Paint.Align.LEFT);
+                String badge=er.wasKiller?"⚔ ":"";
+                c.drawText(badge+er.name,
+                    SW*0.08f,ry2+SH*0.010f,p);
+                p.setTextAlign(Paint.Align.RIGHT);
+                p.setColor(er.won ?
+                    Color.rgb(80,200,80):
+                    Color.rgb(200,80,80));
+                c.drawText(er.won?"GANÓ":"PERDIÓ",
+                    SW*0.92f,ry2+SH*0.010f,p);
+            }
+        }
+
         p.setColor(Color.rgb(60,60,60));
-        p.setTextSize(RH*0.036f);
-        c.drawText("Volviendo a la sala...",RW/2f,RH*0.75f,p);
+        p.setTextSize(SH*0.022f);
+        p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("Volviendo a la sala...",
+            SW/2,SH*0.92f,p);
+
         flushFrameHD();
     }
 
@@ -985,6 +1115,10 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         float btnY = screenH * 0.92f;
         if (ry > btnY && !playerName.isEmpty()) {
+            if(prefs!=null){
+                prefs.edit().putString(
+                    "player_name",playerName).apply();
+            }
             state = GameState.MENU;
         }
     }
@@ -1054,9 +1188,42 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 }
                 break;
             case WAITING:
-                if(!iAmReady && ry2 > sh*0.72f && ry2 < sh*0.84f){
-                    iAmReady = true;
-                    if(netClient!=null) netClient.sendReady();
+                for(int i=0;i<6;i++){
+                    int col=i%2, row=i/3;
+                    float bx=screenW*(col==0?0.04f:0.52f);
+                    float by=screenH*(0.36f+row*0.075f);
+                    float bw=screenW*0.44f;
+                    float bh=screenH*0.062f;
+                    if(ex>=bx&&ex<=bx+bw&&ey>=by&&ey<=by+bh){
+                        myVotedMode=i;
+                        return;
+                    }
+                }
+
+                if(!iAmReady && ey>screenH*0.62f
+                        && ey<screenH*0.70f){
+                    iAmReady=true;
+                    if(netClient!=null)
+                        netClient.sendReady(myVotedMode);
+                    return;
+                }
+
+                if(ey>screenH*0.77f && ey<screenH*0.80f){
+                    float pos=(ex-screenW*0.05f)/
+                        (screenW*0.90f);
+                    pos=Math.max(0,Math.min(1,pos));
+                    camSensitivity=0.02f+pos*(0.15f-0.02f);
+                    return;
+                }
+
+                if(ey>screenH*0.84f && ey<screenH*0.91f){
+                    if(netClient!=null){
+                        netClient.disconnect();
+                        netClient=null;
+                    }
+                    remoteStates.clear();
+                    iAmReady=false;
+                    state=GameState.MENU;
                 }
                 break;
             default: break;
@@ -1083,6 +1250,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void flushFrameHD(){
+        if(frameBmpHD==null) return;
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texId);
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0,
             frameBmpHD, 0);
