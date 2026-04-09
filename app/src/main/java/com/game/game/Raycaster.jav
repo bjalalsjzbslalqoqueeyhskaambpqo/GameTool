@@ -7,6 +7,7 @@ import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import com.game.core.Assets;
+import java.util.List;
 
 public class Raycaster {
 
@@ -164,6 +165,80 @@ public class Raycaster {
         Canvas c = new Canvas(screenBmp);
         c.drawRect(0, 0, W, H, vignette);
         screenBmp.getPixels(pixelBuf, 0, W, 0, 0, W, H);
+    }
+
+    public void renderSprites(int[] pixelBuf, Player player,
+            List<float[]> sprites, long frameCount) {
+
+        int texW = Assets.texW;
+        float px = player.x / Map.TILE;
+        float py = player.y / Map.TILE;
+        float angle = player.angle;
+        float dirX = (float)Math.cos(angle);
+        float dirY = (float)Math.sin(angle);
+        float planeX = (float)Math.cos(angle + Math.PI/2) * 0.66f;
+        float planeY = (float)Math.sin(angle + Math.PI/2) * 0.66f;
+
+        sprites.sort((a, b) -> {
+            float da = (a[0]-player.x)*(a[0]-player.x)
+                     + (a[1]-player.y)*(a[1]-player.y);
+            float db = (b[0]-player.x)*(b[0]-player.x)
+                     + (b[1]-player.y)*(b[1]-player.y);
+            return Float.compare(db, da);
+        });
+
+        for (float[] sp : sprites) {
+            float sx = sp[0] / Map.TILE - px;
+            float sy = sp[1] / Map.TILE - py;
+
+            float invDet = 1f / (planeX*dirY - dirX*planeY);
+            float tX = invDet * (dirY*sx  - dirX*sy);
+            float tY = invDet * (-planeY*sx + planeX*sy);
+
+            if (tY <= 0.1f) continue;
+
+            int sprScreenX = (int)((W/2f) * (1 + tX/tY));
+            int sprH = Math.abs((int)(H / tY));
+            int sprW = sprH;
+
+            int drawStartY = Math.max(0, H/2 - sprH/2);
+            int drawEndY   = Math.min(H-1, H/2 + sprH/2);
+            int drawStartX = Math.max(0, sprScreenX - sprW/2);
+            int drawEndX   = Math.min(W-1, sprScreenX + sprW/2);
+
+            float fog = Math.max(0f, 1f - tY / MAX_DIST);
+            fog = fog * fog * fog;
+
+            for (int stripe = drawStartX; stripe <= drawEndX; stripe++) {
+                if (stripe < 0 || stripe >= zBuf.length) continue;
+                if (tY >= zBuf[stripe]) continue;
+
+                int texX = (int)((stripe - (sprScreenX - sprW/2f))
+                    * texW / (float)sprW);
+                texX = Math.max(0, Math.min(texW-1, texX));
+
+                for (int y = drawStartY; y <= drawEndY; y++) {
+                    int texY = (int)((y - (H/2f - sprH/2f)) * texW / (float)sprH);
+                    texY = Math.max(0, Math.min(texW-1, texY));
+
+                    int c = Assets.wallPixels != null
+                        ? Assets.wallPixels[texY * texW + texX]
+                        : android.graphics.Color.rgb(200, 80, 80);
+
+                    if (android.graphics.Color.alpha(c) == 0) continue;
+
+                    int r2 = Math.min(255,
+                        (int)(android.graphics.Color.red(c)   * fog * 1.4f));
+                    int g2 = Math.min(255,
+                        (int)(android.graphics.Color.green(c) * fog * 0.5f));
+                    int b2 = Math.min(255,
+                        (int)(android.graphics.Color.blue(c)  * fog * 0.5f));
+
+                    pixelBuf[y * W + stripe] =
+                        0xFF000000|(r2<<16)|(g2<<8)|b2;
+                }
+            }
+        }
     }
 
     public void buildMinimap() {

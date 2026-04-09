@@ -2,6 +2,9 @@ package com.game.core;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
@@ -12,6 +15,8 @@ import com.game.net.NetClient;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
@@ -54,6 +59,9 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private volatile boolean waitingForPlayers = true;
     private volatile String roomCode = "----";
     private volatile int connectedPlayers = 1;
+    private volatile String statusMsg = "Esperando jugadores...";
+    private volatile int minPlayers = 2;
+    private final List<float[]> remotePlayers = new ArrayList<>();
 
     private long lastReconnectMs = 0L;
 
@@ -61,6 +69,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         @Override
         public void onConnected() {
             waitingForPlayers = true;
+            statusMsg = "Conectado al servidor";
         }
 
         @Override
@@ -69,6 +78,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             connectedPlayers = players;
             waitingForPlayers = true;
             gameStarted = false;
+            statusMsg = "Sala " + room;
         }
 
         @Override
@@ -76,12 +86,16 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             spectator = isSpectator;
             gameStarted = true;
             waitingForPlayers = false;
+            statusMsg = spectator
+                ? "Entraste como espectador"
+                : "Comienza la partida";
         }
 
         @Override
         public void onDisconnected() {
             waitingForPlayers = true;
             gameStarted = false;
+            statusMsg = "Reconectando...";
         }
     });
 
@@ -175,7 +189,37 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
         raycaster.render(pixelBuf, player, frameCount);
 
+        remotePlayers.clear();
+        remotePlayers.addAll(readRemotePlayerPositions());
+
+        List<float[]> sprites = new ArrayList<>();
+        int myId = readMyId();
+        for (float[] rp : remotePlayers) {
+            int id = (int)rp[2];
+            boolean isSpectator = rp[3] > 0.5f;
+            if (id == myId) continue;
+            if (isSpectator) continue;
+            sprites.add(new float[]{rp[0], rp[1]});
+        }
+        if (!sprites.isEmpty()) {
+            raycaster.renderSprites(pixelBuf, player, sprites, frameCount);
+        }
+
         frameBmp.setPixels(pixelBuf, 0, RW, 0, 0, RW, RH);
+        if (gameStarted) {
+            Canvas hudCanvas = new Canvas(frameBmp);
+            Paint hudP = new Paint(Paint.ANTI_ALIAS_FLAG);
+            hudP.setColor(Color.argb(180, 255, 255, 255));
+            hudP.setTextSize(RH * 0.06f);
+            int alive = 0;
+            for (float[] rp : remotePlayers) {
+                if (rp[3] < 0.5f) alive++;
+            }
+            hudP.setColor(Color.argb(200, 200, 80, 80));
+            hudCanvas.drawText(alive + " jugadores",
+                RW * 0.02f, RH * 0.09f, hudP);
+        }
+        frameBmp.getPixels(pixelBuf, 0, RW, 0, 0, RW, RH);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texId);
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
 
@@ -211,17 +255,46 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void drawWaitingScreen() {
-        int bg = 0xFF101010;
-        int txt = 0xFFFFFFFF;
-        for (int i = 0; i < pixelBuf.length; i++) {
-            pixelBuf[i] = bg;
+        Canvas c = new Canvas(frameBmp);
+        c.drawColor(Color.BLACK);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        p.setTextAlign(Paint.Align.CENTER);
+
+        p.setColor(Color.rgb(180, 50, 50));
+        p.setTextSize(RH * 0.12f);
+        c.drawText("DUNGEON", RW/2f, RH*0.22f, p);
+
+        p.setColor(Color.rgb(140, 140, 140));
+        p.setTextSize(RH * 0.055f);
+        c.drawText(statusMsg, RW/2f, RH*0.40f, p);
+        c.drawText("Sala: " + roomCode, RW/2f, RH*0.47f, p);
+
+        if (!spectator && !gameStarted) {
+            p.setColor(Color.rgb(80, 180, 80));
+            p.setTextSize(RH * 0.065f);
+            c.drawText(connectedPlayers + " / " + minPlayers
+                + " jugadores", RW/2f, RH*0.54f, p);
+
+            p.setColor(Color.rgb(100, 100, 100));
+            p.setTextSize(RH * 0.038f);
+            c.drawText("La partida inicia cuando haya",
+                RW/2f, RH*0.68f, p);
+            c.drawText(minPlayers + " o mas jugadores conectados",
+                RW/2f, RH*0.74f, p);
         }
 
-        drawTextBlock(8, 12, "WAITING ROOM", txt);
-        drawTextBlock(8, 30, "ROOM: " + roomCode, txt);
-        drawTextBlock(8, 48, "PLAYERS: " + connectedPlayers + "/2", txt);
+        if (spectator) {
+            p.setColor(Color.rgb(200, 150, 50));
+            p.setTextSize(RH * 0.05f);
+            c.drawText("Modo espectador", RW/2f, RH*0.54f, p);
+            p.setColor(Color.rgb(100,100,100));
+            p.setTextSize(RH * 0.038f);
+            c.drawText("Esperando proxima partida...",
+                RW/2f, RH*0.64f, p);
+        }
 
-        frameBmp.setPixels(pixelBuf, 0, RW, 0, 0, RW, RH);
+        frameBmp.getPixels(pixelBuf, 0, RW, 0, 0, RW, RH);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texId);
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frameBmp, 0);
 
@@ -242,29 +315,63 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    private void drawTextBlock(int x, int y, String text, int color) {
-        int px = x;
-        for (int i = 0; i < text.length(); i++) {
-            drawGlyph(px, y, text.charAt(i), color);
-            px += 6;
+    private List<float[]> readRemotePlayerPositions() {
+        List<float[]> out = new ArrayList<>();
+        try {
+            java.lang.reflect.Field playersField =
+                netClient.getClass().getDeclaredField("remotePlayers");
+            playersField.setAccessible(true);
+            Object raw = playersField.get(netClient);
+            if (!(raw instanceof List)) {
+                return out;
+            }
+            List list = (List) raw;
+            for (Object rp : list) {
+                float x = readFloatField(rp, "x");
+                float y = readFloatField(rp, "y");
+                int id = (int) readFloatField(rp, "id");
+                float spec = readBooleanField(rp, "spectator") ? 1f : 0f;
+                out.add(new float[]{x, y, id, spec});
+            }
+        } catch (Exception ignored) {
         }
+        return out;
     }
 
-    private void drawGlyph(int x, int y, char c, int color) {
-        if (c == ' ') {
-            return;
-        }
-        for (int gy = 0; gy < 7; gy++) {
-            for (int gx = 0; gx < 5; gx++) {
-                if (gx == 0 || gx == 4 || gy == 0 || gy == 6) {
-                    int sx = x + gx;
-                    int sy = y + gy;
-                    if (sx >= 0 && sx < RW && sy >= 0 && sy < RH) {
-                        pixelBuf[sy * RW + sx] = color;
-                    }
-                }
+    private int readMyId() {
+        try {
+            java.lang.reflect.Field myIdField =
+                netClient.getClass().getDeclaredField("myId");
+            myIdField.setAccessible(true);
+            Object v = myIdField.get(netClient);
+            if (v instanceof Number) {
+                return ((Number) v).intValue();
             }
+        } catch (Exception ignored) {
         }
+        return -1;
+    }
+
+    private float readFloatField(Object obj, String field) {
+        try {
+            java.lang.reflect.Field f = obj.getClass().getDeclaredField(field);
+            f.setAccessible(true);
+            Object v = f.get(obj);
+            if (v instanceof Number) return ((Number) v).floatValue();
+        } catch (Exception ignored) {
+        }
+        return 0f;
+    }
+
+    private boolean readBooleanField(Object obj, String field) {
+        try {
+            java.lang.reflect.Field f = obj.getClass().getDeclaredField(field);
+            f.setAccessible(true);
+            Object v = f.get(obj);
+            if (v instanceof Boolean) return (Boolean) v;
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 
     private void update() {
