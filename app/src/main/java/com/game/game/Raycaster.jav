@@ -7,6 +7,7 @@ import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import com.game.core.Assets;
+import com.game.core.SpriteSheet;
 import java.util.List;
 
 public class Raycaster {
@@ -170,12 +171,15 @@ public class Raycaster {
     public void renderSprites(int[] pixelBuf, Player player,
             List<float[]> sprites, long frameCount) {
 
-        int texW = Assets.texW;
-        float px = player.x / Map.TILE;
-        float py = player.y / Map.TILE;
+        if (SpriteSheet.pixels == null) SpriteSheet.generate();
+
+        int RW = W;
+        int RH = H;
+        float px    = player.x / Map.TILE;
+        float py    = player.y / Map.TILE;
         float angle = player.angle;
-        float dirX = (float)Math.cos(angle);
-        float dirY = (float)Math.sin(angle);
+        float dirX  = (float)Math.cos(angle);
+        float dirY  = (float)Math.sin(angle);
         float planeX = (float)Math.cos(angle + Math.PI/2) * 0.66f;
         float planeY = (float)Math.sin(angle + Math.PI/2) * 0.66f;
 
@@ -187,6 +191,9 @@ public class Raycaster {
             return Float.compare(db, da);
         });
 
+        int SW = SpriteSheet.W;
+        int SH = SpriteSheet.H;
+
         for (float[] sp : sprites) {
             float sx = sp[0] / Map.TILE - px;
             float sy = sp[1] / Map.TILE - py;
@@ -195,46 +202,42 @@ public class Raycaster {
             float tX = invDet * (dirY*sx  - dirX*sy);
             float tY = invDet * (-planeY*sx + planeX*sy);
 
-            if (tY <= 0.1f) continue;
+            if (tY <= 0.15f) continue;
 
-            int sprScreenX = (int)((W/2f) * (1 + tX/tY));
-            int sprH = Math.abs((int)(H / tY));
-            int sprW = sprH;
+            int sprScreenX = (int)((RW/2f) * (1 + tX/tY));
+            int sprH = Math.abs((int)(RH / tY));
+            int sprW = sprH * SW / SH;
 
-            int drawStartY = Math.max(0, H/2 - sprH/2);
-            int drawEndY   = Math.min(H-1, H/2 + sprH/2);
-            int drawStartX = Math.max(0, sprScreenX - sprW/2);
-            int drawEndX   = Math.min(W-1, sprScreenX + sprW/2);
+            int startY = Math.max(0, RH/2 - sprH/2);
+            int endY   = Math.min(RH-1, RH/2 + sprH/2);
+            int startX = Math.max(0, sprScreenX - sprW/2);
+            int endX   = Math.min(RW-1, sprScreenX + sprW/2);
 
             float fog = Math.max(0f, 1f - tY / MAX_DIST);
             fog = fog * fog * fog;
 
-            for (int stripe = drawStartX; stripe <= drawEndX; stripe++) {
+            for (int stripe = startX; stripe <= endX; stripe++) {
                 if (stripe < 0 || stripe >= zBuf.length) continue;
                 if (tY >= zBuf[stripe]) continue;
 
-                int texX = (int)((stripe - (sprScreenX - sprW/2f))
-                    * texW / (float)sprW);
-                texX = Math.max(0, Math.min(texW-1, texX));
+                int texX = (stripe - (sprScreenX - sprW/2)) * SW / sprW;
+                texX = Math.max(0, Math.min(SW-1, texX));
 
-                for (int y = drawStartY; y <= drawEndY; y++) {
-                    int texY = (int)((y - (H/2f - sprH/2f)) * texW / (float)sprH);
-                    texY = Math.max(0, Math.min(texW-1, texY));
+                for (int y = startY; y <= endY; y++) {
+                    int texY = (y - (RH/2 - sprH/2)) * SH / sprH;
+                    texY = Math.max(0, Math.min(SH-1, texY));
 
-                    int c = Assets.wallPixels != null
-                        ? Assets.wallPixels[texY * texW + texX]
-                        : android.graphics.Color.rgb(200, 80, 80);
-
-                    if (android.graphics.Color.alpha(c) == 0) continue;
+                    int col = SpriteSheet.pixels[texY * SW + texX];
+                    if (android.graphics.Color.alpha(col) < 128) continue;
 
                     int r2 = Math.min(255,
-                        (int)(android.graphics.Color.red(c)   * fog * 1.4f));
+                        (int)(android.graphics.Color.red(col)   * fog));
                     int g2 = Math.min(255,
-                        (int)(android.graphics.Color.green(c) * fog * 0.5f));
+                        (int)(android.graphics.Color.green(col) * fog));
                     int b2 = Math.min(255,
-                        (int)(android.graphics.Color.blue(c)  * fog * 0.5f));
+                        (int)(android.graphics.Color.blue(col)  * fog));
 
-                    pixelBuf[y * W + stripe] =
+                    pixelBuf[y * RW + stripe] =
                         0xFF000000|(r2<<16)|(g2<<8)|b2;
                 }
             }
