@@ -15,6 +15,8 @@ public class Raycaster {
     private static final float FOV      = (float)(Math.PI / 3.0);
     private static final int   NUM_RAYS = 320;
     private static final float MAX_DIST = 5f;
+    public int gameMode = 0;
+    public boolean blackout = false;
 
     private final int   W, H;
     private final int   HALF_H;
@@ -44,6 +46,8 @@ public class Raycaster {
 
     public void render(int[] pixelBuf, Player player, long extFrameCount) {
         frameCount = extFrameCount;
+        float effectiveDist = blackout ? 1.8f :
+            (gameMode == 2 ? 8f : 5f);
         float px = player.x / Map.TILE;
         float py = player.y / Map.TILE;
         float angle = player.angle;
@@ -108,7 +112,7 @@ public class Raycaster {
                 texX = texW - texX - 1;
             texX = Math.max(0, Math.min(texW-1, texX));
 
-            float fog  = Math.max(0f, 1f - perpDist / MAX_DIST);
+            float fog  = Math.max(0f, 1f - perpDist / effectiveDist);
             fog = fog * fog * fog * fog * torchFlicker;
             float dark = sideHit ? 0.6f : 1.0f;
             float bright = fog * dark;
@@ -143,7 +147,7 @@ public class Raycaster {
                 int fx = Math.abs((int)(cfX * texW)) % texW;
                 int fy = Math.abs((int)(cfY * texH)) % texH;
 
-                float ff = Math.max(0f, 1f-(distFloor/MAX_DIST));
+                float ff = Math.max(0f, 1f-(distFloor/effectiveDist));
                 ff = ff*ff*torchFlicker;
                 int fc = floorTex != null ? floorTex[fy*texW+fx] : 0xFF303030;
                 int fr = Math.min(255,(int)(Color.red(fc)  *ff));
@@ -213,7 +217,9 @@ public class Raycaster {
             int startX = Math.max(0, sprScreenX - sprW/2);
             int endX   = Math.min(RW-1, sprScreenX + sprW/2);
 
-            float fog = Math.max(0f, 1f - tY / MAX_DIST);
+            float effectiveDist = blackout ? 1.8f :
+                (gameMode == 2 ? 8f : 5f);
+            float fog = Math.max(0f, 1f - tY / effectiveDist);
             fog = fog * fog * fog;
 
             for (int stripe = startX; stripe <= endX; stripe++) {

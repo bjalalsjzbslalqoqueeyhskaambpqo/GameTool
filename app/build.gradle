@@ -5,6 +5,16 @@ plugins {
 android {
     namespace 'com.game'
     compileSdk 33
+
+    signingConfigs {
+        release {
+            storeFile file("$rootDir/keystore/release.jks")
+            storePassword "DungeonReleaseStore2026!"
+            keyAlias "dungeon-release"
+            keyPassword "DungeonReleaseKey2026!"
+        }
+    }
+
     defaultConfig {
         applicationId "com.game.dungeon"
         minSdk 21
@@ -14,6 +24,14 @@ android {
     }
     buildTypes {
         debug { debuggable true }
+        release {
+            debuggable false
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                'proguard-rules.pro'
+        }
     }
 }
 
