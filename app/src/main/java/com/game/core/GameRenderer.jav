@@ -378,7 +378,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             }
         }
         Assets.updateTension(nearestDanger,myHp>0);
-        if(nearestMoving>0) Assets.playRemoteStepCue(nearestMoving);
+        if(nearestMoving>0&&nearestMoving<=120f)
+            Assets.playRemoteStepCue(nearestMoving);
         if(!sprites.isEmpty())
             raycaster.renderSprites(pixelBuf,player,sprites,frameCount);
 

@@ -143,13 +143,13 @@ public class Assets {
     }
 
     public static void playRemoteStepCue(float dist) {
-        if (dist < 0 || dist > 200f) return;
+        if (dist < 0 || dist > 120f) return;
         long now = System.currentTimeMillis();
         if (now - lastRemoteStepAt < 160) return;
         lastRemoteStepAt = now;
         try {
             if (remoteStepTrack == null) remoteStepTrack = buildRemoteStep();
-            float vol = 0.10f + (1f - (dist / 200f)) * 0.26f;
+            float vol = 0.06f + (1f - (dist / 120f)) * 0.28f;
             remoteStepTrack.setStereoVolume(vol, vol);
             remoteStepTrack.stop();
             remoteStepTrack.reloadStaticData();
@@ -159,7 +159,7 @@ public class Assets {
 
     public static void updateTension(float nearestDangerDist,
             boolean active) {
-        if (!active || nearestDangerDist < 0 || nearestDangerDist > 260f) {
+        if (!active || nearestDangerDist < 0 || nearestDangerDist > 170f) {
             if (tensionTrack != null) {
                 try { tensionTrack.pause(); } catch (Exception ignored) {}
             }
@@ -167,7 +167,7 @@ public class Assets {
         }
         try {
             if (tensionTrack == null) tensionTrack = buildTensionLoop();
-            float t = 1f - Math.min(1f, nearestDangerDist / 260f);
+            float t = 1f - Math.min(1f, nearestDangerDist / 170f);
             float vol = 0.03f + t * 0.17f;
             tensionTrack.setStereoVolume(vol, vol);
             if (tensionTrack.getPlayState() != AudioTrack.PLAYSTATE_PLAYING)
