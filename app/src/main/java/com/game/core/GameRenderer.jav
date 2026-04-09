@@ -39,7 +39,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         CONNECTING, MENU, WAITING, PLAYING, DEAD, END, SPECTATING
     }
 
-    public volatile GameState state = GameState.CONNECTING;
+    public volatile GameState state = GameState.MENU;
     public volatile int   gameMode     = MODE_KILLER;
     public volatile boolean amKiller   = false;
     public volatile boolean amInfected = false;
@@ -214,6 +214,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
             GLES20.GL_TEXTURE_MAG_FILTER,GLES20.GL_NEAREST);
         GLES20.glClearColor(0,0,0,1);
         prevTime=System.nanoTime();
+        state = GameState.MENU;
     }
 
     @Override
@@ -239,6 +240,8 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         }
 
         switch(state){
+            case MENU:
+                drawMenuScreen(); return;
             case CONNECTING:
             case WAITING:
             case SPECTATING:
@@ -490,6 +493,72 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void drawDeadOverlay(){}
+
+    private void drawMenuScreen() {
+        Canvas c = new Canvas(frameBmp);
+        c.drawColor(Color.BLACK);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setTextAlign(Paint.Align.CENTER);
+
+        p.setColor(Color.rgb(180,30,30));
+        p.setTextSize(RH*0.14f);
+        p.setFakeBoldText(true);
+        c.drawText("DUNGEON", RW/2f, RH*0.16f, p);
+        p.setFakeBoldText(false);
+
+        String[] modes = {
+            "0 - Asesino",
+            "1 - Infección",
+            "2 - Free for All",
+            "3 - Detective",
+            "4 - Apagón",
+            "5 - Zona Cierre"
+        };
+        float bw = RW * 0.76f;
+        float bh = RH * 0.10f;
+        float bx = (RW - bw) * 0.5f;
+        float top = RH * 0.24f;
+        float gap = RH * 0.015f;
+        for (int i = 0; i < modes.length; i++) {
+            float y0 = top + i * (bh + gap);
+            boolean sel = (i == selectedRoom);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(sel ? Color.rgb(130,40,40) : Color.rgb(40,40,40));
+            c.drawRect(bx, y0, bx + bw, y0 + bh, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.5f);
+            p.setColor(sel ? Color.rgb(220,80,80) : Color.rgb(90,90,90));
+            c.drawRect(bx, y0, bx + bw, y0 + bh, p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.rgb(220,220,220));
+            p.setTextSize(RH*0.045f);
+            c.drawText(modes[i], RW/2f, y0 + bh*0.65f, p);
+        }
+        flushFrame();
+    }
+
+    public void handleMenuTap(float x, float y, int screenW, int screenH) {
+        if (state != GameState.MENU) return;
+        float sx = RW / (float)screenW;
+        float sy = RH / (float)screenH;
+        float rx = x * sx;
+        float ry = y * sy;
+
+        float bw = RW * 0.76f;
+        float bh = RH * 0.10f;
+        float bx = (RW - bw) * 0.5f;
+        float top = RH * 0.24f;
+        float gap = RH * 0.015f;
+        for (int i = 0; i < 6; i++) {
+            float y0 = top + i * (bh + gap);
+            if (rx >= bx && rx <= bx + bw && ry >= y0 && ry <= y0 + bh) {
+                selectedRoom = i;
+                connectToServer();
+                state = GameState.CONNECTING;
+                return;
+            }
+        }
+    }
 
     private void drawWaitingScreen(){
         Canvas c=new Canvas(frameBmp);

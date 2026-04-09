@@ -14,7 +14,6 @@ public class GameSurface extends GLSurfaceView {
         setRenderer(renderer);
         setRenderMode(RENDERMODE_CONTINUOUSLY);
         Assets.load(context);
-        renderer.connectToServer();
     }
 
     @Override
@@ -26,6 +25,11 @@ public class GameSurface extends GLSurfaceView {
 
         if(action==MotionEvent.ACTION_DOWN
                 ||action==MotionEvent.ACTION_POINTER_DOWN){
+
+            if(renderer.state==GameRenderer.GameState.MENU){
+                renderer.handleMenuTap(ex, ey, getWidth(), getHeight());
+                return true;
+            }
 
             // Minijuego en pantalla de espera
             if(renderer.state==GameRenderer.GameState.WAITING){
