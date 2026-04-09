@@ -101,6 +101,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
     private volatile int pingMs = 0;
     private volatile boolean showSettingsOverlay = false;
     private long lastPingTime = 0;
+    private long lastStateBroadcast=0;
     private volatile boolean roomBusy = false;
     private volatile int roomBusyPlayers = 0;
     private volatile int roomBusyMode = 0;
@@ -234,6 +235,21 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 if(!amHost) return;
                 readyVotes.put(id,mode);
                 hostRecalcReady();
+            }
+            public void onRemotePlayerUpdated(int id,
+                    float x,float y,float angle,int hp,boolean alive){
+                if(id==-1) return;
+                RemoteState rs=remoteStates.computeIfAbsent(
+                    id,k->new RemoteState());
+                rs.update(x,y,angle);
+                if(netClient!=null){
+                    for(NetClient.RemotePlayer rp:netClient.remotePlayers){
+                        if(rp.id==id){
+                            rp.hp=hp; rp.alive=alive; break;
+                        }
+                    }
+                }
+                if(amHost) hostBroadcastState();
             }
             public void onDisconnected(){
                 state=GameState.CONNECTING;
@@ -1595,6 +1611,49 @@ public class GameRenderer implements GLSurfaceView.Renderer {
                 break;
             default: break;
         }
+    }
+
+    private void hostBroadcastState(){
+        if(!amHost||netClient==null) return;
+        long now=System.currentTimeMillis();
+        if(now-lastStateBroadcast<50) return;
+        lastStateBroadcast=now;
+
+        com.google.gson.JsonObject state=
+            new com.google.gson.JsonObject();
+        state.addProperty("timer",gameTimer);
+        com.google.gson.JsonArray arr=
+            new com.google.gson.JsonArray();
+
+        com.google.gson.JsonObject me=
+            new com.google.gson.JsonObject();
+        me.addProperty("id",netClient.myId);
+        me.addProperty("name",playerName);
+        me.addProperty("x",player!=null?player.x:0);
+        me.addProperty("y",player!=null?player.y:0);
+        me.addProperty("angle",player!=null?player.angle:0);
+        me.addProperty("hp",myHp);
+        me.addProperty("alive",myHp>0);
+        me.addProperty("spec",false);
+        me.addProperty("team",myTeam);
+        arr.add(me);
+
+        for(NetClient.RemotePlayer rp:netClient.remotePlayers){
+            com.google.gson.JsonObject o=
+                new com.google.gson.JsonObject();
+            o.addProperty("id",rp.id);
+            o.addProperty("name",rp.name);
+            o.addProperty("x",rp.x);
+            o.addProperty("y",rp.y);
+            o.addProperty("angle",rp.angle);
+            o.addProperty("hp",rp.hp);
+            o.addProperty("alive",rp.alive);
+            o.addProperty("spec",rp.spectator);
+            o.addProperty("team",rp.team);
+            arr.add(o);
+        }
+        state.add("players",arr);
+        netClient.hostBroadcast(state);
     }
 
     private void hostRecalcReady(){

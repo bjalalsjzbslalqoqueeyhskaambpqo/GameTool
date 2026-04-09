@@ -43,6 +43,9 @@ public class NetClient {
         void onPlayerDied(int id, String killerName);
         void onGameEnd(boolean killerWon, List<EndResult> results);
         void onReadyUpdate(int ready, int total, int[] votes);
+        void onOtherPlayerReady(int playerId, int mode);
+        void onRemotePlayerUpdated(int id, float x, float y,
+            float angle, int hp, boolean alive);
         void onReadyReset();
         void onRoomBusy(int players, int mode);
         void onPong(int ms);
@@ -201,6 +204,37 @@ public class NetClient {
                         }
                     }
                     listener.onGameEnd(kw,results);
+                    break;
+                }
+                case "ready":{
+                    int fromId=msg.has("from_id")?
+                        msg.get("from_id").getAsInt():-1;
+                    if(fromId!=myId && fromId!=-1){
+                        int vm=msg.has("voted_mode")?
+                            msg.get("voted_mode").getAsInt():0;
+                        listener.onOtherPlayerReady(fromId,vm);
+                    }
+                    break;
+                }
+                case "state_update":{
+                    int fromId=msg.has("from_id")?
+                        msg.get("from_id").getAsInt():-1;
+                    float x=msg.has("x")?msg.get("x").getAsFloat():0;
+                    float y=msg.has("y")?msg.get("y").getAsFloat():0;
+                    float angle=msg.has("angle")?
+                        msg.get("angle").getAsFloat():0;
+                    int hp=msg.has("hp")?msg.get("hp").getAsInt():100;
+                    boolean alive=!msg.has("alive")||
+                        msg.get("alive").getAsBoolean();
+                    for(RemotePlayer rp:remotePlayers){
+                        if(rp.id==fromId){
+                            rp.x=x; rp.y=y; rp.angle=angle;
+                            rp.hp=hp; rp.alive=alive;
+                            break;
+                        }
+                    }
+                    listener.onRemotePlayerUpdated(fromId,
+                        x,y,angle,hp,alive);
                     break;
                 }
                 case "ready_update":{
